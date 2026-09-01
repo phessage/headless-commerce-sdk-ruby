@@ -7,6 +7,8 @@ Run `ruby -Ilib test/client_test.rb`. Rails support is source-integrated but req
 
 Framework-neutral Ruby client for the deployed catalog, anonymous-cart and checkout-preparation preview. See [Rails integration](docs/rails.md).
 
+Use `Phessage::HeadlessCommerce::Client.for_store(store_id: 'your-site-uuid')` for one-field setup. Rails initializers can read only `HEADLESS_COMMERCE_STORE_ID`; the client resolves the public runtime document before making tenant-bound requests.
+
 ## Verification
 
 ```bash

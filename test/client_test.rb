@@ -3,6 +3,11 @@ require_relative '../lib/phessage/headless_commerce'
 
 class ClientTest < Minitest::Test
   TOKEN = 'hc_' + ('a' * 43)
+  def test_store_id_bootstrap
+    calls = []; transport = ->(url, headers, method, body) { calls << [url, headers, method, body]; [200, '{"data":{"storeId":"store-a","apiUrl":"https://sandbox.test","publishableKey":"pk_test_demo","apiVersion":"v1","capabilities":["catalog","cart","checkout-preparation"]}}'] }
+    Phessage::HeadlessCommerce::Client.for_store(store_id: 'store-a', transport: transport)
+    assert calls.first[0].end_with?('/v1/headless/stores/store-a/config'); assert_equal 'GET', calls.first[2]
+  end
   def test_catalog_routes_and_headers
     calls = []; transport = ->(url, headers, method, body) { calls << [url, headers, method, body]; [200, '{"data":[],"requestId":"r"}'] }
     client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: transport)
