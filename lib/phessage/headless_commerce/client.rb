@@ -1,23 +1,67 @@
-require 'json';require 'net/http';require 'uri'
-module Phessage;module HeadlessCommerce
- class ProblemError<StandardError;attr_reader :status,:type,:request_id;def initialize(status,problem);@status=status;@type=problem['type']||'about:blank';@request_id=problem['requestId'];super(problem['detail']||problem['title']||'Request failed');end;end
- class Client
-  def initialize(base_url:,publishable_key:,transport:nil,max_retries:2);raise ArgumentError,'A base URL and publishable key are required' if base_url.to_s.empty?||!publishable_key.start_with?('pk_');@base_url=base_url.sub(%r{/$},'');@key=publishable_key;@transport=transport;@max_retries=max_retries;end
-  def list_products(limit:20,cursor:nil,query:nil);params={limit:[[limit.to_i,1].max,100].min};params[:cursor]=cursor if cursor;params[:query]=query.strip unless query.to_s.strip.empty?;get('/v1/headless/products?'+URI.encode_www_form(params));end
-  def product(id);get('/v1/headless/products/'+URI.encode_www_form_component(id));end
-  def categories;get('/v1/headless/products/categories');end
-  private
-  def get(path)
-   uri=URI(@base_url+path)
-   (@max_retries+1).times do|attempt|
-    status,body=send_request(uri)
-    return JSON.parse(body) if status.between?(200,299)
-    next if [429,502,503,504].include?(status)&&attempt<@max_retries
-    problem=begin JSON.parse(body);rescue JSON::ParserError;{};end
-    raise ProblemError.new(status,problem)
-   end
-   raise 'unreachable'
+require 'json'
+require 'net/http'
+require 'uri'
+
+module Phessage
+  module HeadlessCommerce
+    class ProblemError < StandardError
+      attr_reader :status, :type, :request_id
+      def initialize(status, problem)
+        @status = status; @type = problem['type'] || 'about:blank'; @request_id = problem['requestId']
+        super(problem['detail'] || problem['title'] || 'Request failed')
+      end
+    end
+
+    class Client
+      RETRYABLE_STATUSES = [429, 502, 503, 504].freeze
+      def initialize(base_url:, publishable_key:, transport: nil, max_retries: 2)
+        raise ArgumentError, 'A base URL and publishable key are required' if base_url.to_s.empty? || !publishable_key.start_with?('pk_')
+        @base_url = base_url.sub(%r{/$}, ''); @key = publishable_key; @transport = transport; @max_retries = max_retries
+      end
+
+      def list_products(limit: 20, cursor: nil, query: nil)
+        params = { limit: [[limit.to_i, 1].max, 100].min }; params[:cursor] = cursor if cursor; params[:query] = query.strip unless query.to_s.strip.empty?
+        request('GET', "/v1/headless/products?#{URI.encode_www_form(params)}", retry_safe: true)
+      end
+      def product(id) = request('GET', "/v1/headless/products/#{URI.encode_www_form_component(id)}", retry_safe: true)
+      def categories = request('GET', '/v1/headless/products/categories', retry_safe: true)
+      def create_cart = request('POST', '/v1/headless/carts')
+      def cart(cart_token) = cart_request('GET', '/v1/headless/carts/current', cart_token, retry_safe: true)
+      def add_cart_item(cart_token, product_id:, quantity: 1, variant_id: nil)
+        body = { productId: product_id, quantity: quantity }; body[:variantId] = variant_id if variant_id
+        cart_request('POST', '/v1/headless/carts/current/items', cart_token, body: body)
+      end
+      def update_cart_item(cart_token, item_id:, quantity:) = cart_request('PATCH', "/v1/headless/carts/current/items/#{URI.encode_www_form_component(item_id)}", cart_token, body: { quantity: quantity })
+      def remove_cart_item(cart_token, item_id:) = cart_request('DELETE', "/v1/headless/carts/current/items/#{URI.encode_www_form_component(item_id)}", cart_token)
+      def checkout_preparation(cart_token) = cart_request('GET', '/v1/headless/carts/current/checkout', cart_token, retry_safe: true)
+      def update_checkout_details(cart_token, details) = cart_request('PATCH', '/v1/headless/carts/current/checkout', cart_token, body: details)
+      def select_shipping_method(cart_token, id) = cart_request('PUT', '/v1/headless/carts/current/checkout/shipping-method', cart_token, body: { id: id })
+      def select_payment_method(cart_token, id) = cart_request('PUT', '/v1/headless/carts/current/checkout/payment-method', cart_token, body: { id: id })
+
+      private
+      def cart_request(method, path, token, body: nil, retry_safe: false)
+        raise ArgumentError, 'A cart capability token is required' unless token.to_s.start_with?('hc_')
+        request(method, path, body: body, cart_token: token, retry_safe: retry_safe)
+      end
+      def request(method, path, body: nil, cart_token: nil, retry_safe: false)
+        attempts = retry_safe ? @max_retries + 1 : 1
+        attempts.times do |attempt|
+          status, response_body = send_request(URI(@base_url + path), method, body, cart_token)
+          return JSON.parse(response_body) if status.between?(200, 299)
+          next if retry_safe && RETRYABLE_STATUSES.include?(status) && attempt + 1 < attempts
+          problem = JSON.parse(response_body) rescue {}
+          raise ProblemError.new(status, problem)
+        end
+        raise 'unreachable'
+      end
+      def send_request(uri, method, body, cart_token)
+        headers = { 'Accept' => 'application/json', 'x-publishable-key' => @key }; headers['x-cart-token'] = cart_token if cart_token; headers['Content-Type'] = 'application/json' if body
+        encoded = body && JSON.generate(body)
+        return @transport.call(uri.to_s, headers, method, encoded) if @transport
+        request = Net::HTTP.const_get(method.capitalize).new(uri); headers.each { |name, value| request[name] = value }; request.body = encoded if encoded
+        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 10) { |http| http.request(request) }
+        [response.code.to_i, response.body]
+      end
+    end
   end
-  def send_request(uri);return @transport.call(uri.to_s,{'Accept'=>'application/json','x-publishable-key'=>@key}) if @transport;request=Net::HTTP::Get.new(uri);request['Accept']='application/json';request['x-publishable-key']=@key;response=Net::HTTP.start(uri.host,uri.port,use_ssl:uri.scheme=='https',read_timeout:10){|http|http.request(request)};[response.code.to_i,response.body];end
- end
-end;end
+end
