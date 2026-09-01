@@ -19,4 +19,4 @@ HEADLESS_PUBLISHABLE_KEY=pk_test_... \
 HEADLESS_PRODUCT_ID=... ruby -Ilib test/live.rb
 ```
 
-The live journey fails closed when its environment or known sellable fixture is missing. It creates an isolated cart and selects server-returned shipping/payment choices; it does not create an order or collect payment.
+The live journey fails closed when its environment or known sellable fixture is missing. It creates an isolated cart, selects server-returned choices and places a pending non-hosted order with a retained intent key; it does not collect payment.

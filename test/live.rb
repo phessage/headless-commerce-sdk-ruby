@@ -1,4 +1,5 @@
 require_relative '../lib/phessage/headless_commerce'
+require 'securerandom'
 
 store_id = ENV.fetch('HEADLESS_STORE_ID', '01f5b02f-d7c0-42cd-b880-59f78ea70aa3')
 product_id = ENV.fetch('HEADLESS_PRODUCT_ID', '1f7884bd-759d-4f47-9fdb-c7ea3dd3a9ef')
@@ -18,7 +19,9 @@ shipping = prepared.fetch('shippingOptions'); payment = prepared.fetch('paymentM
 raise 'Expected deployed shipping/payment choices' if shipping.empty? || payment.empty?
 client.select_shipping_method(token, shipping.first.fetch('id')); final = client.select_payment_method(token, payment.first.fetch('id')).fetch('data')
 raise "Checkout preparation remains incomplete: #{final['missing']}" unless final['ready']
-puts "Ruby deployed journey passed: #{shipping.length} shipping, #{payment.length} payment choice(s)"
+order = client.place_order(token, "ruby-live-#{SecureRandom.uuid}").fetch('data')
+raise 'Pending order confirmation missing' unless order['requiresPayment'] == false && order['paymentStatus'] == 'pending'
+puts "Ruby deployed order journey passed: #{order['orderNumber']}"
 rescue Phessage::HeadlessCommerce::ProblemError => error
   warn "Deployed API rejected the journey: status=#{error.status} type=#{error.type} requestId=#{error.request_id} message=#{error.message}"
   raise

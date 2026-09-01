@@ -49,16 +49,21 @@ module Phessage
       def update_checkout_details(cart_token, details) = cart_request('PATCH', '/v1/headless/carts/current/checkout', cart_token, body: details)
       def select_shipping_method(cart_token, id) = cart_request('PUT', '/v1/headless/carts/current/checkout/shipping-method', cart_token, body: { id: id })
       def select_payment_method(cart_token, id) = cart_request('PUT', '/v1/headless/carts/current/checkout/payment-method', cart_token, body: { id: id })
+      def place_order(cart_token, idempotency_key)
+        key = idempotency_key.to_s.strip
+        raise ArgumentError, 'An idempotency key of 1-120 characters is required' if key.empty? || key.length > 120
+        cart_request('POST', '/v1/headless/carts/current/checkout/order', cart_token, retry_safe: true, headers: { 'Idempotency-Key' => key })
+      end
 
       private
-      def cart_request(method, path, token, body: nil, retry_safe: false)
+      def cart_request(method, path, token, body: nil, retry_safe: false, headers: {})
         raise ArgumentError, 'A cart capability token is required' unless token.to_s.start_with?('hc_')
-        request(method, path, body: body, cart_token: token, retry_safe: retry_safe)
+        request(method, path, body: body, cart_token: token, retry_safe: retry_safe, headers: headers)
       end
-      def request(method, path, body: nil, cart_token: nil, retry_safe: false)
+      def request(method, path, body: nil, cart_token: nil, retry_safe: false, headers: {})
         attempts = retry_safe ? @max_retries + 1 : 1
         attempts.times do |attempt|
-          status, response_body = send_request(URI(@base_url + path), method, body, cart_token)
+          status, response_body = send_request(URI(@base_url + path), method, body, cart_token, headers)
           return JSON.parse(response_body) if status.between?(200, 299)
           next if retry_safe && RETRYABLE_STATUSES.include?(status) && attempt + 1 < attempts
           problem = JSON.parse(response_body) rescue {}
@@ -66,8 +71,8 @@ module Phessage
         end
         raise 'unreachable'
       end
-      def send_request(uri, method, body, cart_token)
-        headers = { 'Accept' => 'application/json', 'x-publishable-key' => @key }; headers['x-cart-token'] = cart_token if cart_token; headers['Content-Type'] = 'application/json' if body
+      def send_request(uri, method, body, cart_token, extra_headers = {})
+        headers = { 'Accept' => 'application/json', 'x-publishable-key' => @key }.merge(extra_headers); headers['x-cart-token'] = cart_token if cart_token; headers['Content-Type'] = 'application/json' if body
         encoded = body && JSON.generate(body)
         return @transport.call(uri.to_s, headers, method, encoded) if @transport
         request = Net::HTTP.const_get(method.capitalize).new(uri); headers.each { |name, value| request[name] = value }; request.body = encoded if encoded

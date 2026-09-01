@@ -24,6 +24,15 @@ class ClientTest < Minitest::Test
     attempts = 0; client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', max_retries: 2, transport: ->(*) { attempts += 1; [503, '{}'] })
     assert_raises(Phessage::HeadlessCommerce::ProblemError) { client.create_cart }; assert_equal 1, attempts
   end
+  def test_order_retries_only_with_same_intent_key
+    calls = []; attempts = 0
+    transport = ->(url, headers, method, body) { calls << [url, headers, method, body]; attempts += 1; attempts == 1 ? [503, '{}'] : [201, '{"data":{"orderNumber":"ORD1","requiresPayment":false},"requestId":"r"}'] }
+    client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: transport, max_retries: 1)
+    assert_equal 'ORD1', client.place_order(TOKEN, 'intent-1').dig('data', 'orderNumber')
+    assert_equal ['intent-1', 'intent-1'], calls.map { |call| call[1]['Idempotency-Key'] }
+    assert calls.all? { |call| call[0].end_with?('/checkout/order') && call[2] == 'POST' }
+    assert_raises(ArgumentError) { client.place_order(TOKEN, ' ') }
+  end
   def test_reads_retry_and_raise_typed_problem
     attempts = 0; transport = ->(*) { attempts += 1; attempts == 1 ? [503, '{}'] : [404, '{"type":"x","title":"Missing","requestId":"req_2"}'] }
     error = assert_raises(Phessage::HeadlessCommerce::ProblemError) { Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: transport, max_retries: 1).categories }
