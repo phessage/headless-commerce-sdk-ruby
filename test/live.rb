@@ -21,7 +21,9 @@ client.select_shipping_method(token, shipping.first.fetch('id')); final = client
 raise "Checkout preparation remains incomplete: #{final['missing']}" unless final['ready']
 order = client.place_order(token, "ruby-live-#{SecureRandom.uuid}").fetch('data')
 raise 'Pending order confirmation missing' unless order['requiresPayment'] == false && order['paymentStatus'] == 'pending'
-puts "Ruby deployed order journey passed: #{order['orderNumber']}"
+reopened = client.lookup_order(order.fetch('orderNumber'), 'headless-ruby-live@example.test').fetch('data')
+raise 'Created order could not be reopened' unless reopened['orderNumber'] == order['orderNumber']
+puts "Ruby deployed order journey passed and reopened: #{order['orderNumber']}"
 rescue Phessage::HeadlessCommerce::ProblemError => error
   warn "Deployed API rejected the journey: status=#{error.status} type=#{error.type} requestId=#{error.request_id} message=#{error.message}"
   raise

@@ -38,6 +38,13 @@ class ClientTest < Minitest::Test
     error = assert_raises(Phessage::HeadlessCommerce::ProblemError) { Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: transport, max_retries: 1).categories }
     assert_equal 404, error.status; assert_equal 'req_2', error.request_id; assert_equal 2, attempts
   end
+  def test_guest_order_lookup_is_a_non_retried_post
+    calls = []; client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', max_retries: 2, transport: ->(url, headers, method, body) { calls << [url, headers, method, body]; [201, '{"data":{"orderNumber":"ORD1","status":"pending"},"requestId":"r"}'] })
+    assert_equal 'ORD1', client.lookup_order(' ORD1 ', 'buyer@example.test').dig('data', 'orderNumber')
+    assert_equal 1, calls.length; assert calls.first[0].end_with?('/v1/headless/orders/lookup'); assert_equal 'POST', calls.first[2]
+    assert_equal({ 'orderNumber' => 'ORD1', 'email' => 'buyer@example.test' }, JSON.parse(calls.first[3]))
+    assert_raises(ArgumentError) { client.lookup_order('ORD1', 'bad') }
+  end
   def test_rejects_confidential_key_and_invalid_cart_token
     assert_raises(ArgumentError) { Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'secret') }
     client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: ->(*) { flunk }); assert_raises(ArgumentError) { client.cart('invalid') }

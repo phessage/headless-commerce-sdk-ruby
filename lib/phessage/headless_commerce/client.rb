@@ -54,6 +54,11 @@ module Phessage
         raise ArgumentError, 'An idempotency key of 1-120 characters is required' if key.empty? || key.length > 120
         cart_request('POST', '/v1/headless/carts/current/checkout/order', cart_token, retry_safe: true, headers: { 'Idempotency-Key' => key })
       end
+      def lookup_order(order_number, email)
+        number = order_number.to_s.strip; address = email.to_s.strip
+        raise ArgumentError, 'An order number and valid checkout email are required' if number.empty? || address !~ /\A[^\s@]+@[^\s@]+\.[^\s@]+\z/
+        request('POST', '/v1/headless/orders/lookup', body: { orderNumber: number, email: address })
+      end
 
       private
       def cart_request(method, path, token, body: nil, retry_safe: false, headers: {})
