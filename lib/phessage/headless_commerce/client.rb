@@ -14,6 +14,18 @@ module Phessage
 
     class Client
       RETRYABLE_STATUSES = [429, 502, 503, 504].freeze
+      def self.for_store(store_id:, bootstrap_url: 'https://api.1ecomm.com', transport: nil, max_retries: 2)
+        uri = URI("#{bootstrap_url.sub(%r{/$}, '')}/v1/headless/stores/#{URI.encode_www_form_component(store_id)}/config")
+        status, body = if transport
+                         transport.call(uri.to_s, { 'Accept' => 'application/json' }, 'GET', nil)
+                       else
+                         response = Net::HTTP.get_response(uri); [response.code.to_i, response.body]
+                       end
+        raise "Headless store bootstrap failed (#{status})" unless status == 200
+        runtime = JSON.parse(body).fetch('data')
+        raise 'Invalid headless store bootstrap response' unless runtime['storeId'] == store_id && runtime['publishableKey'].to_s.start_with?('pk_')
+        new(base_url: runtime.fetch('apiUrl'), publishable_key: runtime.fetch('publishableKey'), transport: transport, max_retries: max_retries)
+      end
       def initialize(base_url:, publishable_key:, transport: nil, max_retries: 2)
         raise ArgumentError, 'A base URL and publishable key are required' if base_url.to_s.empty? || !publishable_key.start_with?('pk_')
         @base_url = base_url.sub(%r{/$}, ''); @key = publishable_key; @transport = transport; @max_retries = max_retries
