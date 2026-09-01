@@ -1,10 +1,9 @@
 require_relative '../lib/phessage/headless_commerce'
 
-base_url = ENV.fetch('HEADLESS_API_URL')
-key = ENV.fetch('HEADLESS_PUBLISHABLE_KEY')
-product_id = ENV.fetch('HEADLESS_PRODUCT_ID')
+store_id = ENV.fetch('HEADLESS_STORE_ID', '01f5b02f-d7c0-42cd-b880-59f78ea70aa3')
+product_id = ENV.fetch('HEADLESS_PRODUCT_ID', '1f7884bd-759d-4f47-9fdb-c7ea3dd3a9ef')
 begin
-client = Phessage::HeadlessCommerce::Client.new(base_url: base_url, publishable_key: key)
+client = Phessage::HeadlessCommerce::Client.for_store(store_id: store_id)
 products = client.list_products(limit: 100).fetch('data')
 raise 'Known sellable product is absent' unless products.any? { |product| product['id'] == product_id && product['available'] }
 created = client.create_cart
