@@ -18,3 +18,11 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with: {ruby-version: '3.3', bundler-cache: true}
       - run: bundle exec ruby -Ilib test/rails_runtime_test.rb
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with: {ruby-version: '3.4'}
+      - name: Deployed sandbox contract journey
+        run: ruby -Ilib test/live.rb
