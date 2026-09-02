@@ -6,30 +6,33 @@ require 'time'
 module Phessage
   module HeadlessCommerce
     class ProblemError < StandardError
-      attr_reader :status, :type, :request_id
-      def initialize(status, problem, request_id = nil)
+      attr_reader :status, :type, :request_id, :rate_limit
+      def initialize(status, problem, request_id = nil, rate_limit = {})
         @status = status; @type = problem['type'] || 'about:blank'; @request_id = request_id || problem['requestId']
+        @rate_limit = rate_limit
         super(problem['detail'] || problem['title'] || 'Request failed')
       end
     end
 
     class Client
       RETRYABLE_STATUSES = [429, 502, 503, 504].freeze
-      def self.for_store(store_id:, bootstrap_url: 'https://api.1ecomm.com', transport: nil, max_retries: 2)
+      def self.for_store(store_id:, bootstrap_url: 'https://api.1ecomm.com', transport: nil, max_retries: 2, timeout: 10)
+        raise ArgumentError, 'timeout must be between 0 and 120 seconds' unless timeout.to_f.positive? && timeout.to_f <= 120
         uri = URI("#{bootstrap_url.sub(%r{/$}, '')}/v1/headless/stores/#{URI.encode_www_form_component(store_id)}/config")
         status, body = if transport
                          transport.call(uri.to_s, { 'Accept' => 'application/json' }, 'GET', nil)
                        else
-                         response = Net::HTTP.get_response(uri); [response.code.to_i, response.body]
+                         response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: timeout, read_timeout: timeout) { |http| http.get(uri.request_uri) }; [response.code.to_i, response.body]
                        end
         raise "Headless store bootstrap failed (#{status})" unless status == 200
         runtime = JSON.parse(body).fetch('data')
         raise 'Invalid headless store bootstrap response' unless runtime['storeId'] == store_id && runtime['publishableKey'].to_s.start_with?('pk_')
-        new(base_url: runtime.fetch('apiUrl'), publishable_key: runtime.fetch('publishableKey'), transport: transport, max_retries: max_retries)
+        new(base_url: runtime.fetch('apiUrl'), publishable_key: runtime.fetch('publishableKey'), transport: transport, max_retries: max_retries, timeout: timeout)
       end
-      def initialize(base_url:, publishable_key:, transport: nil, max_retries: 2)
+      def initialize(base_url:, publishable_key:, transport: nil, max_retries: 2, timeout: 10)
         raise ArgumentError, 'A base URL and publishable key are required' if base_url.to_s.empty? || !publishable_key.start_with?('pk_')
-        @base_url = base_url.sub(%r{/$}, ''); @key = publishable_key; @transport = transport; @max_retries = max_retries
+        raise ArgumentError, 'timeout must be between 0 and 120 seconds' unless timeout.to_f.positive? && timeout.to_f <= 120
+        @base_url = base_url.sub(%r{/$}, ''); @key = publishable_key; @transport = transport; @max_retries = max_retries; @timeout = timeout
       end
 
       def list_products(limit: 20, cursor: nil, query: nil)
@@ -77,7 +80,7 @@ module Phessage
           end
           problem = JSON.parse(response_body) rescue {}
           request_id = response_headers&.find { |name, _| name.downcase == 'x-request-id' }&.last
-          raise ProblemError.new(status, problem, request_id)
+          raise ProblemError.new(status, problem, request_id, rate_limit(response_headers || {}))
         end
         raise 'unreachable'
       end
@@ -86,7 +89,7 @@ module Phessage
         encoded = body && JSON.generate(body)
         return @transport.call(uri.to_s, headers, method, encoded) if @transport
         request = Net::HTTP.const_get(method.capitalize).new(uri); headers.each { |name, value| request[name] = value }; request.body = encoded if encoded
-        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 10) { |http| http.request(request) }
+        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: @timeout, read_timeout: @timeout) { |http| http.request(request) }
         [response.code.to_i, response.body, response.each_header.to_h]
       end
       def wait_before_retry(headers, attempt)
@@ -98,6 +101,11 @@ module Phessage
                 end
         delay ||= [0.25 * (2**attempt) + rand(0.0..0.1), 30].min
         sleep([delay, 30].min) if delay.positive?
+      end
+      def rate_limit(headers)
+        value = ->(name) { headers.find { |key, _| key.downcase == name }&.last }
+        number = ->(name) { raw = value.call(name); raw&.match?(/\A\d+\z/) ? raw.to_i : nil }
+        { limit: number.call('ratelimit-limit'), remaining: number.call('ratelimit-remaining'), reset: number.call('ratelimit-reset'), retry_after: value.call('retry-after') }
       end
     end
   end
