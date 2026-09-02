@@ -34,9 +34,9 @@ class ClientTest < Minitest::Test
     assert_raises(ArgumentError) { client.place_order(TOKEN, ' ') }
   end
   def test_reads_retry_and_raise_typed_problem
-    attempts = 0; transport = ->(*) { attempts += 1; attempts == 1 ? [503, '{}'] : [404, '{"type":"x","title":"Missing","requestId":"req_2"}'] }
+    attempts = 0; transport = ->(*) { attempts += 1; attempts == 1 ? [503, '{}', { 'Retry-After' => '0' }] : [404, '{"type":"x","title":"Missing","requestId":"body-id"}', { 'X-Request-Id' => 'header-id' }] }
     error = assert_raises(Phessage::HeadlessCommerce::ProblemError) { Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: transport, max_retries: 1).categories }
-    assert_equal 404, error.status; assert_equal 'req_2', error.request_id; assert_equal 2, attempts
+    assert_equal 404, error.status; assert_equal 'header-id', error.request_id; assert_equal 2, attempts
   end
   def test_guest_order_lookup_is_a_non_retried_post
     calls = []; client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', max_retries: 2, transport: ->(url, headers, method, body) { calls << [url, headers, method, body]; [201, '{"data":{"orderNumber":"ORD1","status":"pending"},"requestId":"r"}'] })
