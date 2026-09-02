@@ -18,6 +18,8 @@ order = client.lookup_order('ORD123', 'buyer@example.com')
 
 The client discovers the correct public API settings from the store ID. A store ID is an identifier, not a password. Rails configuration is explained in [Rails integration](docs/rails.md).
 
+Eligible reads and idempotent order placement use bounded exponential backoff and honor `Retry-After` up to 30 seconds. Ordinary mutations are never replayed. Typed errors prefer the authoritative `X-Request-Id` response header for support correlation.
+
 `ruby -Ilib test/live.rb` runs the complete maintained fixture journey with no environment setup: catalog, isolated cart, checkout choices and one pending bank-transfer test order. Set `HEADLESS_STORE_ID` only for another provisioned sandbox. The test does not charge money.
 
 The SDK supports catalog, anonymous cart, guest checkout preparation, capability-gated non-hosted order placement and non-retrying guest order lookup. Keep the cart token in an encrypted server-side session. Reuse the same order intent key after an uncertain result. Never put the order number or checkout email in a URL or analytics event.

@@ -1,13 +1,14 @@
 require 'json'
 require 'net/http'
 require 'uri'
+require 'time'
 
 module Phessage
   module HeadlessCommerce
     class ProblemError < StandardError
       attr_reader :status, :type, :request_id
-      def initialize(status, problem)
-        @status = status; @type = problem['type'] || 'about:blank'; @request_id = problem['requestId']
+      def initialize(status, problem, request_id = nil)
+        @status = status; @type = problem['type'] || 'about:blank'; @request_id = request_id || problem['requestId']
         super(problem['detail'] || problem['title'] || 'Request failed')
       end
     end
@@ -68,11 +69,15 @@ module Phessage
       def request(method, path, body: nil, cart_token: nil, retry_safe: false, headers: {})
         attempts = retry_safe ? @max_retries + 1 : 1
         attempts.times do |attempt|
-          status, response_body = send_request(URI(@base_url + path), method, body, cart_token, headers)
+          status, response_body, response_headers = send_request(URI(@base_url + path), method, body, cart_token, headers)
           return JSON.parse(response_body) if status.between?(200, 299)
-          next if retry_safe && RETRYABLE_STATUSES.include?(status) && attempt + 1 < attempts
+          if retry_safe && RETRYABLE_STATUSES.include?(status) && attempt + 1 < attempts
+            wait_before_retry(response_headers || {}, attempt)
+            next
+          end
           problem = JSON.parse(response_body) rescue {}
-          raise ProblemError.new(status, problem)
+          request_id = response_headers&.find { |name, _| name.downcase == 'x-request-id' }&.last
+          raise ProblemError.new(status, problem, request_id)
         end
         raise 'unreachable'
       end
@@ -82,7 +87,17 @@ module Phessage
         return @transport.call(uri.to_s, headers, method, encoded) if @transport
         request = Net::HTTP.const_get(method.capitalize).new(uri); headers.each { |name, value| request[name] = value }; request.body = encoded if encoded
         response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 10) { |http| http.request(request) }
-        [response.code.to_i, response.body]
+        [response.code.to_i, response.body, response.each_header.to_h]
+      end
+      def wait_before_retry(headers, attempt)
+        retry_after = headers.find { |name, _| name.downcase == 'retry-after' }&.last
+        delay = if retry_after&.match?(/\A\d+(?:\.\d+)?\z/)
+                  retry_after.to_f
+                elsif retry_after
+                  [Time.httpdate(retry_after) - Time.now, 0].max rescue nil
+                end
+        delay ||= [0.25 * (2**attempt) + rand(0.0..0.1), 30].min
+        sleep([delay, 30].min) if delay.positive?
       end
     end
   end
