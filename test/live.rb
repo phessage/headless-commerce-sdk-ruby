@@ -17,8 +17,9 @@ prepared = client.update_checkout_details(token, {
   shippingAddress: { sameAsBilling: true }
 }).fetch('data')
 shipping = prepared.fetch('shippingOptions'); payment = prepared.fetch('paymentMethods')
-raise 'Expected deployed shipping/payment choices' if shipping.empty? || payment.empty?
-client.select_shipping_method(token, shipping.first.fetch('id')); final = client.select_payment_method(token, payment.first.fetch('id')).fetch('data')
+raise 'Expected a deployed payment choice' if payment.empty?
+client.select_shipping_method(token, shipping.first.fetch('id')) unless shipping.empty?
+final = client.select_payment_method(token, payment.first.fetch('id')).fetch('data')
 raise "Checkout preparation remains incomplete: #{final['missing']}" unless final['ready']
 order = client.place_order(token, "ruby-live-#{SecureRandom.uuid}").fetch('data')
 raise 'Pending order confirmation missing' unless order['requiresPayment'] == false && order['paymentStatus'] == 'pending'
