@@ -4,7 +4,8 @@ require 'securerandom'
 store_id = ENV.fetch('HEADLESS_STORE_ID', '01f5b02f-d7c0-42cd-b880-59f78ea70aa3')
 product_id = ENV.fetch('HEADLESS_PRODUCT_ID', '1f7884bd-759d-4f47-9fdb-c7ea3dd3a9ef')
 begin
-client = Phessage::HeadlessCommerce::Client.for_store(store_id: store_id)
+key = ENV.fetch('HEADLESS_PUBLISHABLE_KEY', '')
+client = key.empty? ? Phessage::HeadlessCommerce::Client.for_store(store_id: store_id) : Phessage::HeadlessCommerce::Client.new(base_url: ENV.fetch('HEADLESS_API_URL', 'https://api.1ecomm.com'), publishable_key: key)
 products = client.list_products(limit: 100).fetch('data')
 raise 'Known sellable product is absent' unless products.any? { |product| product['id'] == product_id && product['available'] }
 created = client.create_cart
