@@ -18,9 +18,17 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with: {ruby-version: '3.3', bundler-cache: true}
       - run: bundle exec ruby -Ilib test/rails_runtime_test.rb
-  deployed-contract:
+  deployed-journey:
     runs-on: ubuntu-latest
+    env: {HEADLESS_E2E_ALLOCATOR_TOKEN: '${{ secrets.HEADLESS_E2E_ALLOCATOR_TOKEN }}'}
     steps:
       - uses: actions/checkout@v4
-      - name: Deployed non-mutating bootstrap probe
-        run: curl --fail --silent --show-error https://api.1ecomm.com/v1/headless/stores/01f5b02f-d7c0-42cd-b880-59f78ea70aa3/config >/dev/null
+      - uses: ruby/setup-ruby@v1
+        with: {ruby-version: '3.3'}
+      - name: Allocate isolated deployed fixture
+        run: bash .github/scripts/headless-fixture.sh allocate
+      - name: Run deployed catalog-to-order journey
+        run: ruby -Ilib test/live.rb
+      - name: Release isolated deployed fixture
+        if: always()
+        run: bash .github/scripts/headless-fixture.sh release
