@@ -8,4 +8,4 @@ HEADLESS_COMMERCE = Phessage::HeadlessCommerce::Client.for_store(
 )
 ```
 
-Keep each shopper's returned `hc_…` cart token in the encrypted Rails session and never place it in a URL or log. Reads may retry eligible transient responses; mutations never retry automatically. Order finalization, payment capture and public webhooks are not part of the preview. Do not add an Active Job webhook consumer until signature verification and duplicate-event handling ship.
+Keep each shopper's returned `hc_…` cart token in the encrypted Rails session and never place it in a URL or log. Reads may retry eligible transient responses; mutations follow the documented idempotency policy. Verify signed events from the exact `request.raw_post` bytes with `WebhookVerifier.verify` before parsing or enqueueing work. Back `replay_store.claim` with a database unique constraint so concurrent Rails workers cannot repeat side effects.

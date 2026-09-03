@@ -50,4 +50,12 @@ class ClientTest < Minitest::Test
     assert_raises(ArgumentError) { Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'secret') }
     client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: ->(*) { flunk }); assert_raises(ArgumentError) { client.cart('invalid') }
   end
+  def test_webhook_verification_and_replay_claim
+    timestamp = 1_788_480_000; envelope = { 'id' => 'delivery-1', 'event' => 'order.paid', 'installationId' => nil, 'applicationId' => 'app-1', 'siteId' => 'site-1', 'occurredAt' => '2026-09-04T00:00:00.000Z', 'data' => { 'orderId' => 'order-1' } }; raw = JSON.generate(envelope); secret = 'whsec_test_receiver_secret'; signature = "sha256=#{OpenSSL::HMAC.hexdigest('SHA256', secret, "#{timestamp}.#{raw}")}"; headers = { 'X-Headless-Webhook-Timestamp' => timestamp.to_s, 'X-Headless-Webhook-Signature' => signature, 'X-Headless-Webhook-Id' => 'delivery-1' }; claims = []
+    result = Phessage::HeadlessCommerce::WebhookVerifier.verify(raw_body: raw, headers: headers, secret: secret, now: Time.at(timestamp), replay_store: ->(id, _) { claims << id; true })
+    assert_equal 'order-1', result.dig('data', 'orderId'); assert_equal ['delivery-1'], claims
+    error = assert_raises(Phessage::HeadlessCommerce::WebhookVerificationError) { Phessage::HeadlessCommerce::WebhookVerifier.verify(raw_body: "#{raw} ", headers: headers, secret: secret, now: Time.at(timestamp)) }; assert_equal :invalid_signature, error.reason
+    error = assert_raises(Phessage::HeadlessCommerce::WebhookVerificationError) { Phessage::HeadlessCommerce::WebhookVerifier.verify(raw_body: raw, headers: headers, secret: secret, now: Time.at(timestamp + 301)) }; assert_equal :stale_timestamp, error.reason
+    error = assert_raises(Phessage::HeadlessCommerce::WebhookVerificationError) { Phessage::HeadlessCommerce::WebhookVerifier.verify(raw_body: raw, headers: headers, secret: secret, now: Time.at(timestamp), replay_store: ->(*) { false }) }; assert_equal :replayed_delivery, error.reason
+  end
 end

@@ -28,4 +28,4 @@ CI allocates a short-lived, repository-specific fixture and injects its publisha
 
 The SDK supports catalog, anonymous cart, guest checkout preparation, capability-gated non-hosted order placement and non-retrying guest order lookup. Keep the cart token in an encrypted server-side session. Reuse the same order intent key after an uncertain result. Never put the order number or checkout email in a URL or analytics event.
 
-This preview does not collect card/wallet payments, capture/refund money, merge customer carts, or deliver webhooks.
+This preview does not directly capture/refund money or merge customer carts. Hosted checkout and signed commerce events are platform capabilities. Pass the exact request body and headers to `WebhookVerifier.verify`, keep the `whsec_` secret server-side, and provide a replay store whose `claim` operation is atomic and backed by a unique delivery-ID constraint.
