@@ -6,7 +6,7 @@ Read `README.md`, `docs/rails.md`, the gemspec, `lib/*` and all tests before edi
 
 This is a Ruby 3.1+ SDK with an optional Rails Railtie. Canonical API truth is `phessage/ecommerce-service/contracts/headless-commerce-v1.openapi.yaml`. Rails support configures the shared client; it must not hide routes, callbacks or network work.
 
-Preserve store bootstrap, key-derived tenant scope, cart bearer-token secrecy, non-retry of mutations/lookup and same-key-only retry of uncertain order placement. Parse documented shapes only: guest order count is `items.length`, not `itemCount`.
+Preserve store bootstrap, key-derived tenant scope, cart bearer-token secrecy, non-retry of mutations/lookup and same-key-only retry of uncertain order placement. Customer operations remain bound to that same store; rotate the single-use refresh capability after every refresh and clear both credentials on logout. Parse documented shapes only: guest order count is `items.length`, not `itemCount`.
 
 Signed outbound webhooks are deployed. Receiver code verifies the exact raw body, timestamp, HMAC and delivery-ID binding before parsing or side effects, then atomically claims the delivery ID in durable storage.
 

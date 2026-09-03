@@ -63,8 +63,41 @@ module Phessage
         raise ArgumentError, 'An order number and valid checkout email are required' if number.empty? || address !~ /\A[^\s@]+@[^\s@]+\.[^\s@]+\z/
         request('POST', '/v1/headless/orders/lookup', body: { orderNumber: number, email: address })
       end
+      def customer_auth_config = customer_request('GET', '/auth/config', retry_safe: true)
+      def login_customer(email:, password:, cart_token: nil) = customer_request('POST', '/auth/login', body: { email: email, password: password }, cart_token: cart_token)
+      def request_customer_otp(channel:, destination:, region: nil) = customer_request('POST', '/auth/otp/request', body: { channel: channel, destination: destination, **(region ? { region: region } : {}) })
+      def verify_customer_otp(input, cart_token: nil) = customer_request('POST', '/auth/otp/verify', body: input, cart_token: cart_token)
+      def social_login_customer(provider:, id_token:, cart_token: nil)
+        raise ArgumentError, 'Social provider must be google or apple' unless %w[google apple].include?(provider.to_s)
+        customer_request('POST', "/auth/social/#{URI.encode_www_form_component(provider)}", body: { idToken: id_token }, cart_token: cart_token)
+      end
+      def refresh_customer(refresh_token) = customer_request('POST', '/auth/refresh', body: { refreshToken: refresh_token })
+      def logout_customer(refresh_token) = customer_request('POST', '/auth/logout', body: { refreshToken: refresh_token })
+      def customer_profile(token) = customer_request('GET', '/me', token: token, retry_safe: true)
+      def update_customer_profile(token, input) = customer_request('PATCH', '/me', token: token, body: input)
+      def merge_customer_cart(token, cart_token) = customer_request('POST', '/cart/merge', token: token, cart_token: cart_token)
+      def customer_addresses(token) = customer_request('GET', '/addresses', token: token, retry_safe: true)
+      def create_customer_address(token, input) = customer_request('POST', '/addresses', token: token, body: input)
+      def update_customer_address(token, id, input) = customer_request('PATCH', "/addresses/#{URI.encode_www_form_component(id)}", token: token, body: input)
+      def delete_customer_address(token, id) = customer_request('DELETE', "/addresses/#{URI.encode_www_form_component(id)}", token: token)
+      def set_default_customer_address(token, id) = customer_request('POST', "/addresses/#{URI.encode_www_form_component(id)}/default", token: token)
+      def customer_orders(token, page: 1, limit: 20, status: nil)
+        query = URI.encode_www_form({ page: [page.to_i, 1].max, limit: [[limit.to_i, 1].max, 100].min, status: status }.compact)
+        customer_request('GET', "/orders?#{query}", token: token, retry_safe: true)
+      end
+      def customer_order(token, id) = customer_request('GET', "/orders/#{URI.encode_www_form_component(id)}", token: token, retry_safe: true)
+      def cancel_customer_order(token, id, reason) = customer_request('POST', "/orders/#{URI.encode_www_form_component(id)}/cancel", token: token, body: { reason: reason })
+      def customer_returns(token) = customer_request('GET', '/returns', token: token, retry_safe: true)
+      def customer_order_returns(token, order_id) = customer_request('GET', "/orders/#{URI.encode_www_form_component(order_id)}/returns", token: token, retry_safe: true)
+      def create_customer_return(token, order_id, input) = customer_request('POST', "/orders/#{URI.encode_www_form_component(order_id)}/returns", token: token, body: input)
+      def cancel_customer_return(token, id) = customer_request('POST', "/returns/#{URI.encode_www_form_component(id)}/cancel", token: token)
 
       private
+      def customer_request(method, path, token: nil, body: nil, cart_token: nil, retry_safe: false)
+        raise ArgumentError, 'A customer access token is required' if token == ''
+        headers = token ? { 'x-customer-token' => token } : {}
+        request(method, "/v1/headless/customer#{path}", body: body, cart_token: cart_token, retry_safe: retry_safe, headers: headers)
+      end
       def cart_request(method, path, token, body: nil, retry_safe: false, headers: {})
         raise ArgumentError, 'A cart capability token is required' unless token.to_s.start_with?('hc_')
         request(method, path, body: body, cart_token: token, retry_safe: retry_safe, headers: headers)
