@@ -1,6 +1,8 @@
 # 1Ecomm Headless Commerce Ruby SDK and Rails Adapter
 
-Preview gems are distributed through the private `phessage` GitHub Packages RubyGems registry and mirrored as immutable GitHub Release assets. Each release passes a clean gem-install smoke and carries a locked dependency manifest plus SHA-256 checksums. Public RubyGems.org publication remains disabled while the source is private and proprietary.
+Free for authorized 1Ecomm customers and their developers to build and operate 1Ecomm-connected commerce experiences. You may deploy finished sites, but may not redistribute, resell, sublicense, mirror, or republish this SDK or a reusable derivative. See [LICENSE.md](LICENSE.md).
+
+Preview gems are distributed through the private `phessage` GitHub Packages RubyGems registry and mirrored as immutable GitHub Release assets. Each release passes a clean gem-install smoke and carries a locked dependency manifest plus SHA-256 checksums. Public RubyGems.org publication remains disabled because the customer-use license prohibits downstream redistribution.
 
 Use this package for a Ruby or Rails website that sells products from a 1Ecomm store.
 

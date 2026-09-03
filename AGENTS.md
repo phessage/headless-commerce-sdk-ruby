@@ -18,6 +18,10 @@ Signed outbound webhooks are deployed. Receiver code verifies the exact raw body
 - Avoid global mutable configuration. The Railtie should use normal Rails configuration and lazy initialization.
 - Keep support aligned with the gemspec's Ruby floor and CI matrix. Update `Gemfile.lock` with dependency changes and do not weaken constraints just to resolve locally.
 
+## License boundary
+
+`LICENSE.md` allows authorized 1Ecomm customer projects and deployed or compiled shopper applications, but prohibits redistribution of this reusable SDK/plugin or its derivatives. Preserve the notice in clones, packages, generated projects and documentation. Do not describe this repository as open source or grant broader rights in examples.
+
 ## Verification
 
 Run `bundle install`, `bundle exec ruby -Ilib test/client_test.rb`, and `bundle exec ruby -Ilib test/rails_runtime_test.rb`; run `ruby -Ilib test/live.rb` only against the maintained sandbox. A Rails change requires a real application boot. Distinguish local tests from deployed live proof.
