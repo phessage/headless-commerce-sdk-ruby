@@ -21,3 +21,7 @@ Signed outbound webhooks are deployed. Receiver code verifies the exact raw body
 ## Verification
 
 Run `bundle install`, `bundle exec ruby -Ilib test/client_test.rb`, and `bundle exec ruby -Ilib test/rails_runtime_test.rb`; run `ruby -Ilib test/live.rb` only against the maintained sandbox. A Rails change requires a real application boot. Distinguish local tests from deployed live proof.
+
+## Releases
+
+`.github/workflows/release.yml` is the only gem publisher. It requires the protected `package-release` environment, an exact gemspec version and unused immutable tag; it runs Ruby/Rails tests and a clean gem-install smoke before publishing to the restricted `phessage` GitHub Packages RubyGems registry and attaching the gem, dependency manifest and checksums to the GitHub Release. Never publish this proprietary gem to public RubyGems.org, move a tag or replace a released version without an explicit licensing/distribution decision.
