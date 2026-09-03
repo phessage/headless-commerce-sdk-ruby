@@ -46,6 +46,16 @@ class ClientTest < Minitest::Test
     assert_equal({ 'orderNumber' => 'ORD1', 'email' => 'buyer@example.test' }, JSON.parse(calls.first[3]))
     assert_raises(ArgumentError) { client.lookup_order('ORD1', 'bad') }
   end
+  def test_customer_route_and_header_parity
+    calls = []; transport = ->(url, headers, method, body) { calls << [url, headers, method, body]; [200, '{"data":{},"requestId":"r"}'] }
+    client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: transport)
+    client.login_customer(email: 'buyer@example.test', password: 'password1', cart_token: TOKEN)
+    client.refresh_customer('a' * 64); client.customer_profile('customer-jwt'); client.merge_customer_cart('customer-jwt', TOKEN)
+    client.customer_orders('customer-jwt', page: 2, limit: 10, status: 'pending'); client.create_customer_return('customer-jwt', 'order/1', items: [{ orderItemId: 'line-1', quantity: 1 }])
+    assert_equal %w[POST POST GET POST GET POST], calls.map { |call| call[2] }
+    assert_equal TOKEN, calls[0][1]['x-cart-token']; assert_equal 'customer-jwt', calls[2][1]['x-customer-token']
+    assert_includes calls[4][0], 'page=2&limit=10&status=pending'; assert calls[5][0].include?('/orders/order%2F1/returns')
+  end
   def test_rejects_confidential_key_and_invalid_cart_token
     assert_raises(ArgumentError) { Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'secret') }
     client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: ->(*) { flunk }); assert_raises(ArgumentError) { client.cart('invalid') }
