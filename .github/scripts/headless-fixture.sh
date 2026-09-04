@@ -14,7 +14,7 @@ if [ "${1:-}" = "allocate" ]; then
     "$api/allocate")"
   printf '%s' "$response" > "$state"
   chmod 600 "$state"
-  for field in leaseId leaseToken storeId publishableKey productId variantId customer.email customer.password; do jq -er ".$field | strings | select(length > 0)" "$state" >/dev/null; done
+  for field in leaseId leaseToken storeId publishableKey productId variantId customer.email customer.password returnOrder.id returnOrder.itemId; do jq -er ".$field | strings | select(length > 0)" "$state" >/dev/null; done
   echo "::add-mask::$(jq -r '.leaseToken' "$state")"
   echo "::add-mask::$(jq -r '.publishableKey' "$state")"
   echo "::add-mask::$(jq -r '.customer.password' "$state")"
@@ -27,6 +27,8 @@ if [ "${1:-}" = "allocate" ]; then
     echo "HEADLESS_VARIANT_ID=$(jq -r '.variantId' "$state")"
     echo "HEADLESS_CUSTOMER_EMAIL=$(jq -r '.customer.email' "$state")"
     echo "HEADLESS_CUSTOMER_PASSWORD=$(jq -r '.customer.password' "$state")"
+    echo "HEADLESS_RETURN_ORDER_ID=$(jq -r '.returnOrder.id' "$state")"
+    echo "HEADLESS_RETURN_ORDER_ITEM_ID=$(jq -r '.returnOrder.itemId' "$state")"
     echo "HEADLESS_API_URL=https://api.1ecomm.com"
   } >> "$GITHUB_ENV"
   echo "Allocated isolated fixture lease $(jq -r '.leaseId' "$state")"
