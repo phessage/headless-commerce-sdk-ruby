@@ -495,6 +495,58 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/auth/password/recovery:
+    post:
+      operationId: requestHeadlessCustomerPasswordRecovery
+      summary: Request a non-enumerating customer password recovery email
+      security: [{ headlessPublishableKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerPasswordRecoveryRequestInput' }
+      responses:
+        '202':
+          description: Recovery request accepted regardless of account existence
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerPasswordRecoveryRequestResponse' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/auth/password/reset:
+    post:
+      operationId: completeHeadlessCustomerPasswordRecovery
+      summary: Consume a password recovery capability and set a new password
+      security: [{ headlessPublishableKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerPasswordRecoveryCompleteInput' }
+      responses:
+        '200':
+          description: Password changed and recovery capability consumed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerPasswordRecoveryCompleteResponse' }
+        '401':
+          description: Invalid application or invalid, expired, consumed, or mismatched recovery capability
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
   /v1/headless/customer/auth/otp/request:
     post:
       operationId: requestHeadlessCustomerOtp
@@ -1214,6 +1266,44 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254 }
         password: { type: string, minLength: 8, maxLength: 128 }
+    CustomerPasswordRecoveryRequestInput:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+    CustomerPasswordRecoveryCompleteInput:
+      type: object
+      additionalProperties: false
+      required: [email, token, newPassword]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        token: { type: string, pattern: '^[a-f0-9]{64}$' }
+        newPassword: { type: string, minLength: 8, maxLength: 128 }
+    CustomerPasswordRecoveryRequestResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [accepted]
+          properties:
+            accepted: { const: true }
+        requestId: { type: string, format: uuid }
+    CustomerPasswordRecoveryCompleteResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [reset]
+          properties:
+            reset: { const: true }
+        requestId: { type: string, format: uuid }
     CustomerOtpRequestInput:
       type: object
       additionalProperties: false

@@ -51,11 +51,13 @@ class ClientTest < Minitest::Test
     calls = []; transport = ->(url, headers, method, body) { calls << [url, headers, method, body]; [200, '{"data":{},"requestId":"r"}'] }
     client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: transport)
     client.login_customer(email: 'buyer@example.test', password: 'password1', cart_token: TOKEN)
+    client.request_customer_password_recovery(email: 'buyer@example.test'); client.reset_customer_password(email: 'buyer@example.test', token: 'b' * 64, new_password: 'new-password')
     client.refresh_customer('a' * 64); client.customer_profile('customer-jwt'); client.merge_customer_cart('customer-jwt', TOKEN)
     client.customer_orders('customer-jwt', page: 2, limit: 10, status: 'pending'); client.create_customer_return('customer-jwt', 'order/1', { items: [{ orderItemId: 'line-1', quantity: 1 }] }, idempotency_key: 'return-intent-1')
-    assert_equal %w[POST POST GET POST GET POST], calls.map { |call| call[2] }
-    assert_equal TOKEN, calls[0][1]['x-cart-token']; assert_equal 'customer-jwt', calls[2][1]['x-customer-token']; assert_equal 'return-intent-1', calls[5][1]['Idempotency-Key']
-    assert_includes calls[4][0], 'page=2&limit=10&status=pending'; assert calls[5][0].include?('/orders/order%2F1/returns')
+    assert_equal %w[POST POST POST POST GET POST GET POST], calls.map { |call| call[2] }
+    assert calls[1][0].end_with?('/auth/password/recovery'); assert calls[2][0].end_with?('/auth/password/reset')
+    assert_equal TOKEN, calls[0][1]['x-cart-token']; assert_equal 'customer-jwt', calls[4][1]['x-customer-token']; assert_equal 'return-intent-1', calls[7][1]['Idempotency-Key']
+    assert_includes calls[6][0], 'page=2&limit=10&status=pending'; assert calls[7][0].include?('/orders/order%2F1/returns')
   end
   def test_oauth_transaction_and_route_parity
     transaction = Phessage::HeadlessCommerce::OAuthTransaction.create
