@@ -14,4 +14,6 @@ Keep each shopper's returned `hc_…` cart token in the encrypted Rails session 
 
 For Google/Apple redirect login, create a fresh `Phessage::HeadlessCommerce::OAuthTransaction`, store its state/verifier and exact callback URI in the encrypted session, compare returned state before exchanging the code, and delete the pending transaction after success or failure.
 
+Password-recovery requests intentionally return the same accepted result whether an account exists. Recovery capabilities expire after one hour and work once; keep them out of logs, analytics, support payloads and referrer-bearing pages.
+
 Use `ProblemError#code` for failure control flow and retain `request_id` for support. Treat `errors` and `fields` as public validation diagnostics only; never log shopper credentials or send them with a support request. The reviewed contract snapshot is packaged with the gem for integration audits.

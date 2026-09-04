@@ -65,6 +65,8 @@ module Phessage
       end
       def customer_auth_config = customer_request('GET', '/auth/config', retry_safe: true)
       def login_customer(email:, password:, cart_token: nil) = customer_request('POST', '/auth/login', body: { email: email, password: password }, cart_token: cart_token)
+      def request_customer_password_recovery(email:) = customer_request('POST', '/auth/password/recovery', body: { email: email })
+      def reset_customer_password(email:, token:, new_password:) = customer_request('POST', '/auth/password/reset', body: { email: email, token: token, newPassword: new_password })
       def request_customer_otp(channel:, destination:, region: nil) = customer_request('POST', '/auth/otp/request', body: { channel: channel, destination: destination, **(region ? { region: region } : {}) })
       def verify_customer_otp(input, cart_token: nil) = customer_request('POST', '/auth/otp/verify', body: input, cart_token: cart_token)
       def social_login_customer(provider:, id_token:, cart_token: nil)
