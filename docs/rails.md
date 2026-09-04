@@ -1,5 +1,7 @@
 # Rails integration
 
+For a return, persist one intent key with the pending action and reuse it only with the identical payload after an uncertain response; the SDK does not automatically retry the mutation.
+
 The gem includes a Railtie and is exercised by `test/rails_runtime_test.rb` inside a real Rails application boot. Configure one client in an initializer using Rails encrypted credentials or environment-backed configuration:
 
 ```ruby

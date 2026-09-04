@@ -981,13 +981,18 @@ paths:
       operationId: createHeadlessOrderReturn
       summary: Open a return request for eligible fulfilled lines
       security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 120 }
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/CreateReturnInput' }
       responses:
-        '200':
+        '201':
           description: Created return request
           content:
             application/json:
@@ -999,6 +1004,11 @@ paths:
               schema: { $ref: '#/components/schemas/HeadlessProblem' }
         '404':
           description: Order not found or belongs to another customer
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '409':
+          description: Idempotency key was already used with a different return request
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/HeadlessProblem' }

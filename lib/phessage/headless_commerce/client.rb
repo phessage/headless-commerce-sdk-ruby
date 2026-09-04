@@ -89,14 +89,19 @@ module Phessage
       def cancel_customer_order(token, id, reason) = customer_request('POST', "/orders/#{URI.encode_www_form_component(id)}/cancel", token: token, body: { reason: reason })
       def customer_returns(token) = customer_request('GET', '/returns', token: token, retry_safe: true)
       def customer_order_returns(token, order_id) = customer_request('GET', "/orders/#{URI.encode_www_form_component(order_id)}/returns", token: token, retry_safe: true)
-      def create_customer_return(token, order_id, input) = customer_request('POST', "/orders/#{URI.encode_www_form_component(order_id)}/returns", token: token, body: input)
+      def create_customer_return(token, order_id, input, idempotency_key:)
+        key = idempotency_key.to_s.strip
+        raise ArgumentError, 'idempotency_key must contain 1-120 characters' if key.empty? || key.length > 120
+
+        customer_request('POST', "/orders/#{URI.encode_www_form_component(order_id)}/returns", token: token, body: input, headers: { 'Idempotency-Key' => key })
+      end
       def cancel_customer_return(token, id) = customer_request('POST', "/returns/#{URI.encode_www_form_component(id)}/cancel", token: token)
 
       private
-      def customer_request(method, path, token: nil, body: nil, cart_token: nil, retry_safe: false)
+      def customer_request(method, path, token: nil, body: nil, cart_token: nil, retry_safe: false, headers: {})
         raise ArgumentError, 'A customer access token is required' if token == ''
-        headers = token ? { 'x-customer-token' => token } : {}
-        request(method, "/v1/headless/customer#{path}", body: body, cart_token: cart_token, retry_safe: retry_safe, headers: headers)
+        credential_headers = token ? { 'x-customer-token' => token } : {}
+        request(method, "/v1/headless/customer#{path}", body: body, cart_token: cart_token, retry_safe: retry_safe, headers: credential_headers.merge(headers))
       end
       def cart_request(method, path, token, body: nil, retry_safe: false, headers: {})
         raise ArgumentError, 'A cart capability token is required' unless token.to_s.start_with?('hc_')

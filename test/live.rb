@@ -53,7 +53,17 @@ unless customer_email.empty? || customer_password.empty?
   return_order_id = ENV.fetch('HEADLESS_RETURN_ORDER_ID', '')
   return_order_item_id = ENV.fetch('HEADLESS_RETURN_ORDER_ITEM_ID', '')
   raise 'Eligible return fixture missing' if return_order_id.empty? || return_order_item_id.empty?
-  return_request = client.create_customer_return(auth.fetch('token'), return_order_id, { reason: 'not_as_expected', items: [{ orderItemId: return_order_item_id, quantity: 1, resolution: 'refund' }] }).dig('data', 'return')
+  return_intent = "customer-return:#{ENV['GITHUB_RUN_ID'] || SecureRandom.uuid}"
+  return_input = { reason: 'not_as_expected', items: [{ orderItemId: return_order_item_id, quantity: 1, resolution: 'refund' }] }
+  return_request = client.create_customer_return(auth.fetch('token'), return_order_id, return_input, idempotency_key: return_intent).dig('data', 'return')
+  replayed_return = client.create_customer_return(auth.fetch('token'), return_order_id, return_input, idempotency_key: return_intent).dig('data', 'return')
+  assert.call(replayed_return['id'] == return_request['id'], 'return creation did not replay the original request')
+  begin
+    client.create_customer_return(auth.fetch('token'), return_order_id, return_input.merge(note: 'different intent'), idempotency_key: return_intent)
+    raise 'return key reuse with a different payload did not conflict'
+  rescue Phessage::HeadlessCommerce::ProblemError => e
+    assert.call(e.status == 409, 'different return intent did not return 409')
+  end
   raise 'Return creation projection drifted' unless return_request['orderId'] == return_order_id && return_request['status'] == 'requested'
   order_returns = client.customer_order_returns(auth.fetch('token'), return_order_id).dig('data', 'returns')
   raise 'Return missing from order history' unless order_returns.any? { |entry| entry['id'] == return_request['id'] }

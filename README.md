@@ -1,5 +1,7 @@
 # 1Ecomm Headless Commerce Ruby SDK and Rails Adapter
 
+`create_customer_return` requires a caller-owned 1–120 character `idempotency_key:`. Reuse it with the identical request to recover the original RMA; changed return details fail with HTTP 409.
+
 Free for authorized 1Ecomm customers and their developers to build and operate 1Ecomm-connected commerce experiences. You may deploy finished sites, but may not redistribute, resell, sublicense, mirror, or republish this SDK or a reusable derivative. See [LICENSE.md](LICENSE.md).
 
 Preview gems are distributed through the private `phessage` GitHub Packages RubyGems registry and mirrored as immutable GitHub Release assets. Each release passes a clean gem-install smoke and carries a locked dependency manifest plus SHA-256 checksums. Public RubyGems.org publication remains disabled because the customer-use license prohibits downstream redistribution.

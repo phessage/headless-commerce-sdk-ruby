@@ -52,10 +52,16 @@ class ClientTest < Minitest::Test
     client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: transport)
     client.login_customer(email: 'buyer@example.test', password: 'password1', cart_token: TOKEN)
     client.refresh_customer('a' * 64); client.customer_profile('customer-jwt'); client.merge_customer_cart('customer-jwt', TOKEN)
-    client.customer_orders('customer-jwt', page: 2, limit: 10, status: 'pending'); client.create_customer_return('customer-jwt', 'order/1', items: [{ orderItemId: 'line-1', quantity: 1 }])
+    client.customer_orders('customer-jwt', page: 2, limit: 10, status: 'pending'); client.create_customer_return('customer-jwt', 'order/1', { items: [{ orderItemId: 'line-1', quantity: 1 }] }, idempotency_key: 'return-intent-1')
     assert_equal %w[POST POST GET POST GET POST], calls.map { |call| call[2] }
-    assert_equal TOKEN, calls[0][1]['x-cart-token']; assert_equal 'customer-jwt', calls[2][1]['x-customer-token']
+    assert_equal TOKEN, calls[0][1]['x-cart-token']; assert_equal 'customer-jwt', calls[2][1]['x-customer-token']; assert_equal 'return-intent-1', calls[5][1]['Idempotency-Key']
     assert_includes calls[4][0], 'page=2&limit=10&status=pending'; assert calls[5][0].include?('/orders/order%2F1/returns')
+  end
+  def test_rejects_invalid_return_idempotency_key_without_a_request
+    calls = []; transport = ->(url, headers, method, body) { calls << [url, headers, method, body]; [200, '{}'] }
+    client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: transport)
+    assert_raises(ArgumentError) { client.create_customer_return('customer-jwt', 'order-1', { items: [] }, idempotency_key: ' ') }
+    assert_empty calls
   end
   def test_rejects_confidential_key_and_invalid_cart_token
     assert_raises(ArgumentError) { Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'secret') }
