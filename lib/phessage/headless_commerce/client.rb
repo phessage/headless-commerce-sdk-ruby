@@ -71,6 +71,15 @@ module Phessage
         raise ArgumentError, 'Social provider must be google or apple' unless %w[google apple].include?(provider.to_s)
         customer_request('POST', "/auth/social/#{URI.encode_www_form_component(provider)}", body: { idToken: id_token }, cart_token: cart_token)
       end
+      def authorize_customer_oauth(provider:, redirect_uri:, code_challenge:, state:)
+        raise ArgumentError, 'OAuth provider must be google or apple' unless %w[google apple].include?(provider.to_s)
+        raise ArgumentError, 'OAuth state must contain 16-1024 characters' unless state.to_s.length.between?(16, 1024)
+
+        customer_request('POST', "/auth/oauth/#{URI.encode_www_form_component(provider)}/authorize", body: { redirectUri: redirect_uri, codeChallenge: code_challenge, state: state })
+      end
+      def exchange_customer_oauth(code:, code_verifier:, redirect_uri:, cart_token: nil)
+        customer_request('POST', '/auth/oauth/token', body: { code: code, codeVerifier: code_verifier, redirectUri: redirect_uri }, cart_token: cart_token)
+      end
       def refresh_customer(refresh_token) = customer_request('POST', '/auth/refresh', body: { refreshToken: refresh_token })
       def logout_customer(refresh_token) = customer_request('POST', '/auth/logout', body: { refreshToken: refresh_token })
       def customer_profile(token) = customer_request('GET', '/me', token: token, retry_safe: true)
