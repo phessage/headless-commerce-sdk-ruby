@@ -6,10 +6,10 @@ require 'time'
 module Phessage
   module HeadlessCommerce
     class ProblemError < StandardError
-      attr_reader :status, :type, :request_id, :rate_limit
+      attr_reader :status, :type, :request_id, :rate_limit, :code, :errors, :fields
       def initialize(status, problem, request_id = nil, rate_limit = {})
         @status = status; @type = problem['type'] || 'about:blank'; @request_id = request_id || problem['requestId']
-        @rate_limit = rate_limit
+        @rate_limit = rate_limit; @code = problem['code']; @errors = Array(problem['errors']).select { |entry| entry.is_a?(String) }; @fields = problem['fields'].is_a?(Hash) ? problem['fields'] : {}
         super(problem['detail'] || problem['title'] || 'Request failed')
       end
     end

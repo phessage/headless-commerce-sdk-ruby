@@ -25,7 +25,42 @@ order = client.place_order(token, "ruby-live-#{SecureRandom.uuid}").fetch('data'
 raise 'Pending order confirmation missing' unless order['requiresPayment'] == false && order['paymentStatus'] == 'pending'
 reopened = client.lookup_order(order.fetch('orderNumber'), 'headless-ruby-live@example.test').fetch('data')
 raise 'Created order could not be reopened' unless reopened['orderNumber'] == order['orderNumber']
-puts "Ruby deployed order journey passed and reopened: #{order['orderNumber']}"
+customer_email = ENV.fetch('HEADLESS_CUSTOMER_EMAIL', '')
+customer_password = ENV.fetch('HEADLESS_CUSTOMER_PASSWORD', '')
+unless customer_email.empty? || customer_password.empty?
+  customer_cart = client.create_cart
+  client.add_cart_item(customer_cart.fetch('cartToken'), product_id: product_id)
+  auth = client.login_customer(email: customer_email, password: customer_password, cart_token: customer_cart.fetch('cartToken')).fetch('data')
+  raise 'Customer authentication projection drifted' unless auth.keys.sort == %w[cartInfo customer expiresIn refreshToken token].sort
+  raise 'Customer profile projection drifted' unless auth.fetch('customer').keys.sort == %w[id email firstName lastName phone avatarUrl emailVerified].sort
+  assert_error = begin
+    client.customer_profile('')
+    nil
+  rescue ArgumentError => error
+    error
+  end
+  raise 'Missing customer token was accepted' unless assert_error
+  profile = client.update_customer_profile(auth.fetch('token'), { firstName: 'Ruby E2E' }).fetch('data')
+  raise 'Customer profile update failed' unless profile['firstName'] == 'Ruby E2E'
+  merged = client.merge_customer_cart(auth.fetch('token'), customer_cart.fetch('cartToken')).fetch('data')
+  raise 'Customer cart merge failed' unless merged['merged'] && merged['cartToken'].to_s.start_with?('hc_')
+  address = client.create_customer_address(auth.fetch('token'), { firstName: 'Ruby', lastName: 'E2E', address1: '1 Fixture Way', city: 'Vancouver', province: 'BC', country: 'CA', zip: 'V6B1A1', setDefault: true }).dig('data', 'address')
+  raise 'Customer address creation failed' unless address['id'] && address['isDefault']
+  updated = client.update_customer_address(auth.fetch('token'), address.fetch('id'), { address2: 'Suite Ruby' }).dig('data', 'address')
+  raise 'Customer address update failed' unless updated['address2'] == 'Suite Ruby'
+  addresses = client.customer_addresses(auth.fetch('token')).dig('data', 'addresses')
+  raise 'Customer address list failed' unless addresses.any? { |entry| entry['id'] == address['id'] }
+  raise 'Customer address deletion failed' unless client.delete_customer_address(auth.fetch('token'), address.fetch('id')).dig('data', 'deleted')
+  rotated = client.refresh_customer(auth.fetch('refreshToken')).fetch('data')
+  begin
+    client.refresh_customer(auth.fetch('refreshToken'))
+    raise 'Consumed refresh token was accepted'
+  rescue Phessage::HeadlessCommerce::ProblemError => error
+    raise 'Refresh replay problem contract failed' unless error.status == 401 && error.code == 'HEADLESS_HTTP_401'
+  end
+  raise 'Customer logout failed' unless client.logout_customer(rotated.fetch('refreshToken')).dig('data', 'loggedOut')
+end
+puts "Ruby deployed guest and customer journeys passed and reopened: #{order['orderNumber']}"
 rescue Phessage::HeadlessCommerce::ProblemError => error
   warn "Deployed API rejected the journey: status=#{error.status} type=#{error.type} requestId=#{error.request_id} message=#{error.message}"
   raise

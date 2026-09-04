@@ -1,0 +1,2028 @@
+openapi: 3.1.1
+info:
+  title: 1Ecomm Headless Commerce API
+  version: 0.6.0-preview.1
+  description: Preview contract. Deployment and production support require the release gates documented in ecommerce-docs.
+servers:
+  - url: https://api.1ecomm.com
+paths:
+  /v1/headless/stores/{storeId}/config:
+    get:
+      operationId: getHeadlessStoreBootstrap
+      summary: Resolve public runtime configuration for a configured store ID
+      security: []
+      parameters:
+        - {
+            name: storeId,
+            in: path,
+            required: true,
+            schema: { type: string, format: uuid },
+          }
+      responses:
+        '200':
+          description: Public store runtime configuration
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoreBootstrapResponse' }
+        '400':
+          description: Invalid store ID
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: Store is not configured for headless access
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/carts:
+    post:
+      operationId: createCart
+      summary: Create an isolated anonymous cart
+      security: [{ headlessPublishableKey: [] }]
+      responses:
+        '201':
+          description: New cart and its one-time returned capability token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateCartResponse' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/carts/current:
+    get:
+      operationId: getCart
+      summary: Read the cart owned by the presented capability token
+      security: [{ headlessPublishableKey: [], headlessCartToken: [] }]
+      responses:
+        '200':
+          description: Token-owned cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CartResponse' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: 'Cart token is missing, invalid, expired, or belongs to another store'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/carts/current/items:
+    post:
+      operationId: addCartItem
+      summary: Add a sellable product to the token-owned cart
+      security: [{ headlessPublishableKey: [], headlessCartToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddCartItemInput' }
+      responses:
+        '201':
+          description: Updated cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CartResponse' }
+        '400':
+          description: 'Invalid or unavailable product, variant, or quantity'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: 'Cart token is missing, invalid, expired, or belongs to another store'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/carts/current/items/{itemId}:
+    parameters:
+      - {
+          name: itemId,
+          in: path,
+          required: true,
+          schema: { type: string, format: uuid },
+        }
+    patch:
+      operationId: updateCartItem
+      summary: Set a cart line quantity
+      security: [{ headlessPublishableKey: [], headlessCartToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCartItemInput' }
+      responses:
+        '200':
+          description: Updated cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CartResponse' }
+        '400':
+          description: Invalid quantity or immutable promotional line
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: Cart or item not found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+    delete:
+      operationId: removeCartItem
+      summary: Remove a standard cart line
+      security: [{ headlessPublishableKey: [], headlessCartToken: [] }]
+      responses:
+        '200':
+          description: Updated cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CartResponse' }
+        '400':
+          description: Immutable promotional line
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: Cart or item not found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/carts/current/checkout:
+    get:
+      operationId: getCheckoutPreparation
+      summary: Read checkout preparation state and server-authoritative choices
+      security: [{ headlessPublishableKey: [], headlessCartToken: [] }]
+      responses:
+        '200':
+          description: Checkout preparation state
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CheckoutPreparationResponse' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: 'Cart token is missing, invalid, expired, or cross-store'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+    patch:
+      operationId: updateCheckoutDetails
+      summary: Update guest contact and addresses
+      security: [{ headlessPublishableKey: [], headlessCartToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutDetailsInput' }
+      responses:
+        '200':
+          description: Updated checkout preparation state
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CheckoutPreparationResponse' }
+        '400':
+          description: Invalid or unknown input field
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: 'Cart token is missing, invalid, expired, or cross-store'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/carts/current/checkout/shipping-method:
+    put:
+      operationId: selectCheckoutShippingMethod
+      summary: Select an option from the server-quoted shipping set
+      security: [{ headlessPublishableKey: [], headlessCartToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutSelectionInput' }
+      responses:
+        '200':
+          description: Updated checkout preparation state
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CheckoutPreparationResponse' }
+        '400':
+          description: 'Option is unavailable, ineligible, invalid, or expired'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: 'Cart token is missing, invalid, expired, or cross-store'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/carts/current/checkout/payment-method:
+    put:
+      operationId: selectCheckoutPaymentMethod
+      summary: Select a checkout-ready payment method
+      security: [{ headlessPublishableKey: [], headlessCartToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutSelectionInput' }
+      responses:
+        '200':
+          description: Updated checkout preparation state
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CheckoutPreparationResponse' }
+        '400':
+          description: Payment method is unavailable or not checkout-ready
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: 'Cart token is missing, invalid, expired, or cross-store'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/carts/current/checkout/order:
+    post:
+      operationId: placeHeadlessOrder
+      summary: Place one order using the selected non-hosted payment method
+      security: [{ headlessPublishableKey: [], headlessCartToken: [] }]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 120 }
+      responses:
+        '201':
+          description: Order confirmation; a guest checkout token is returned only once
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlaceOrderResponse' }
+        '400':
+          description: Checkout is incomplete or the payment method requires hosted checkout
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: 'Cart token is missing, invalid, expired, or cross-store'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/carts/current/checkout/payment-session:
+    post:
+      operationId: createHeadlessHostedPaymentSession
+      summary: Atomically create the pending order and idempotent hosted checkout session
+      security: [{ headlessPublishableKey: [], headlessCartToken: [] }]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 120 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HostedPaymentSessionInput' }
+      responses:
+        '201':
+          description: Pending order and provider-hosted checkout handoff
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/HostedPaymentSessionResponse' }
+        '400':
+          description: Checkout is incomplete, payment method is not hosted, or redirect origin is not allow-listed
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: Cart or leased order not found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/orders/lookup:
+    post:
+      operationId: lookupHeadlessOrder
+      summary: Look up a guest order by order number and checkout email
+      security: [{ headlessPublishableKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderLookupInput' }
+      responses:
+        '201':
+          description: Current redacted order, item fulfillment, and tracking state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderLookupResponse' }
+        '400':
+          description: Invalid or unknown input field
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: Order not found or the checkout email does not match
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/auth/config:
+    get:
+      operationId: getHeadlessCustomerAuthConfig
+      summary: Read enabled customer authentication methods
+      security: [{ headlessPublishableKey: [] }]
+      responses:
+        '200':
+          description: Store-scoped customer authentication configuration
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CustomerAuthConfigResponse' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/auth/login:
+    post:
+      operationId: loginHeadlessCustomer
+      summary: Sign in a customer with email and password
+      security: [{ headlessPublishableKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerPasswordLoginInput' }
+      responses:
+        '200':
+          description: Customer session and cart-merge state
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CustomerAuthenticationResponse' }
+        '401':
+          description: Invalid application or customer credentials
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/auth/otp/request:
+    post:
+      operationId: requestHeadlessCustomerOtp
+      summary: Request a store-scoped email or SMS sign-in code
+      security: [{ headlessPublishableKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerOtpRequestInput' }
+      responses:
+        '200':
+          description: Non-enumerating OTP delivery result
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CustomerOtpRequestResponse' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/auth/refresh:
+    post:
+      operationId: refreshHeadlessCustomerSession
+      summary: Rotate a customer refresh capability and issue a new short-lived access token
+      security: [{ headlessPublishableKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerRefreshInput' }
+      responses:
+        '200':
+          description: Rotated customer session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerSessionResponse' }
+        '401':
+          description: Invalid, expired, replayed, or cross-store refresh capability
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/auth/logout:
+    post:
+      operationId: logoutHeadlessCustomerSession
+      summary: Revoke a customer refresh capability
+      security: [{ headlessPublishableKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerRefreshInput' }
+      responses:
+        '200':
+          description: Logout accepted without revealing capability state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerLogoutResponse' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/auth/otp/verify:
+    post:
+      operationId: verifyHeadlessCustomerOtp
+      summary: Verify an OTP and create or resume a customer session
+      security: [{ headlessPublishableKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerOtpVerifyInput' }
+      responses:
+        '200':
+          description: Customer session and cart-merge state
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CustomerAuthenticationResponse' }
+        '401':
+          description: Invalid application or OTP
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/auth/social/{provider}:
+    parameters:
+      - {
+          name: provider,
+          in: path,
+          required: true,
+          schema: { enum: [google, apple] },
+        }
+    post:
+      operationId: authenticateHeadlessCustomerSocial
+      summary: Exchange a verified-provider ID token for a customer session
+      security: [{ headlessPublishableKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerSocialLoginInput' }
+      responses:
+        '200':
+          description: Customer session and cart-merge state
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CustomerAuthenticationResponse' }
+        '401':
+          description: Invalid application or provider identity
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: Unsupported provider
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/me:
+    get:
+      operationId: getHeadlessCustomerProfile
+      summary: Read the authenticated customer's store-scoped profile
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      responses:
+        '200':
+          description: Redacted customer profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerProfileResponse' }
+        '401':
+          description: 'Missing, invalid, inactive, or cross-store customer session'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+    patch:
+      operationId: updateHeadlessCustomerProfile
+      summary: Update the authenticated customer's editable profile fields
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerProfileUpdateInput' }
+      responses:
+        '200':
+          description: Updated redacted profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerProfileResponse' }
+        '401':
+          description: Customer authentication required
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/cart/merge:
+    post:
+      operationId: mergeHeadlessCustomerCart
+      summary: Merge the token-owned anonymous cart into the signed-in customer's cart
+      security:
+        [
+          {
+            headlessPublishableKey: [],
+            headlessCustomerToken: [],
+            headlessCartToken: [],
+          },
+        ]
+      responses:
+        '200':
+          description: Cart merge outcome with a rotated capability for the customer-owned cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerCartMergeResponse' }
+        '401':
+          description: Customer authentication required
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: Cart not found in the key-bound store
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/addresses:
+    get:
+      operationId: listHeadlessCustomerAddresses
+      summary: List the customer's saved addresses
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      responses:
+        '200':
+          description: 'Saved addresses, default first'
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CustomerAddressListResponse' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+    post:
+      operationId: createHeadlessCustomerAddress
+      summary: Create a saved address
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerAddressInput' }
+      responses:
+        '200':
+          description: Created address
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerAddressResponse' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/addresses/{id}:
+    parameters:
+      - {
+          name: id,
+          in: path,
+          required: true,
+          schema: { type: string, format: uuid },
+        }
+    patch:
+      operationId: updateHeadlessCustomerAddress
+      summary: Update an owned saved address
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      responses:
+        '200':
+          description: Updated address
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerAddressResponse' }
+        '404':
+          description: Address not found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+    delete:
+      operationId: deleteHeadlessCustomerAddress
+      summary: Delete an owned saved address
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      responses:
+        '200':
+          description: Address deleted
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CustomerAddressDeleteResponse' }
+        '404':
+          description: Address not found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/addresses/{id}/default:
+    post:
+      operationId: defaultHeadlessCustomerAddress
+      summary: Make an owned saved address the default
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      parameters:
+        - {
+            name: id,
+            in: path,
+            required: true,
+            schema: { type: string, format: uuid },
+          }
+      responses:
+        '200':
+          description: New default address
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerAddressResponse' }
+        '404':
+          description: Address not found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/orders:
+    get:
+      operationId: listHeadlessCustomerOrders
+      summary: List the authenticated customer's order history
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      parameters:
+        - {
+            name: page,
+            in: query,
+            schema: { type: integer, minimum: 1, default: 1 },
+          }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+        - { name: status, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Customer-owned order page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerOrderPageResponse' }
+        '401':
+          description: Customer authentication required
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/orders/{id}:
+    get:
+      operationId: getHeadlessCustomerOrder
+      summary: Read one customer-owned order with tracking
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      parameters:
+        - {
+            name: id,
+            in: path,
+            required: true,
+            schema: { type: string, format: uuid },
+          }
+      responses:
+        '200':
+          description: Redacted customer order and tracking
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CustomerOrderDetailResponse' }
+        '404':
+          description: Order not found or belongs to another customer
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/orders/{id}/cancel:
+    post:
+      operationId: cancelHeadlessCustomerOrder
+      summary: Request cancellation of an eligible customer-owned order
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      parameters:
+        - {
+            name: id,
+            in: path,
+            required: true,
+            schema: { type: string, format: uuid },
+          }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelOrderInput' }
+      responses:
+        '200':
+          description: Cancellation outcome
+          content:
+            application/json:
+              schema:
+                {
+                  $ref: '#/components/schemas/CustomerOrderCancellationResponse',
+                }
+        '404':
+          description: Order not found or belongs to another customer
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/returns:
+    get:
+      operationId: listHeadlessCustomerReturns
+      summary: List the authenticated customer's return requests
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      responses:
+        '200':
+          description: Customer-owned return requests
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CustomerReturnListResponse' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/orders/{orderId}/returns:
+    parameters:
+      - {
+          name: orderId,
+          in: path,
+          required: true,
+          schema: { type: string, format: uuid },
+        }
+    get:
+      operationId: listHeadlessOrderReturns
+      summary: List return requests for one customer-owned order
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      responses:
+        '200':
+          description: Return requests for the order
+          content:
+            application/json:
+              schema:
+                { $ref: '#/components/schemas/CustomerReturnListResponse' }
+        '404':
+          description: Order not found or belongs to another customer
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+    post:
+      operationId: createHeadlessOrderReturn
+      summary: Open a return request for eligible fulfilled lines
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateReturnInput' }
+      responses:
+        '200':
+          description: Created return request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerReturnResponse' }
+        '400':
+          description: Return is ineligible or input is invalid
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: Order not found or belongs to another customer
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/returns/{id}/cancel:
+    post:
+      operationId: cancelHeadlessCustomerReturn
+      summary: Cancel a still-requested customer-owned return
+      security: [{ headlessPublishableKey: [], headlessCustomerToken: [] }]
+      parameters:
+        - {
+            name: id,
+            in: path,
+            required: true,
+            schema: { type: string, format: uuid },
+          }
+      responses:
+        '200':
+          description: Cancelled return request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerReturnResponse' }
+        '404':
+          description: Return request not found
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/products:
+    get:
+      operationId: listProducts
+      summary: List published products in the store bound to a publishable key
+      security: [{ headlessPublishableKey: [] }]
+      parameters:
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: query, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Published product page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductPage' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/products/categories:
+    get:
+      operationId: listCategories
+      summary: List the public category tree
+      security: [{ headlessPublishableKey: [] }]
+      responses:
+        '200':
+          description: Public category tree
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryTreeResponse' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/products/{id}:
+    get:
+      operationId: getProduct
+      summary: Get one published product
+      security: [{ headlessPublishableKey: [] }]
+      parameters:
+        - {
+            name: id,
+            in: path,
+            required: true,
+            schema: { type: string, format: uuid },
+          }
+      responses:
+        '200':
+          description: Published product
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductResponse' }
+        '401':
+          description: Missing or invalid publishable key
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        '404':
+          description: Product does not exist in the key-bound store or is not published
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+components:
+  securitySchemes:
+    headlessPublishableKey:
+      { type: apiKey, in: header, name: x-publishable-key }
+    headlessCartToken: { type: apiKey, in: header, name: x-cart-token }
+    headlessCustomerToken: { type: apiKey, in: header, name: x-customer-token }
+  schemas:
+    HeadlessProblem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, requestId, code]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string }
+        requestId: { type: string, format: uuid }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]*$' }
+        errors:
+          type: array
+          items: { type: string }
+        fields:
+          type: object
+          additionalProperties: true
+    CustomerPasswordLoginInput:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 8, maxLength: 128 }
+    CustomerOtpRequestInput:
+      type: object
+      additionalProperties: false
+      required: [channel, destination]
+      properties:
+        channel: { enum: [email, sms] }
+        destination: { type: string, maxLength: 254 }
+        region: { type: string, pattern: '^[A-Za-z]{2}$' }
+    CustomerOtpVerifyInput:
+      allOf:
+        - { $ref: '#/components/schemas/CustomerOtpRequestInput' }
+        - type: object
+          additionalProperties: false
+          required: [code]
+          properties:
+            code: { type: string, minLength: 4, maxLength: 8 }
+            firstName: { type: string, maxLength: 80 }
+            lastName: { type: string, maxLength: 80 }
+    CustomerSocialLoginInput:
+      type: object
+      additionalProperties: false
+      required: [idToken]
+      properties:
+        idToken: { type: string, maxLength: 8192 }
+        firstName: { type: string, maxLength: 80 }
+        lastName: { type: string, maxLength: 80 }
+    CustomerRefreshInput:
+      type: object
+      additionalProperties: false
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string, pattern: '^[a-f0-9]{64}$' }
+    CustomerSession:
+      type: object
+      additionalProperties: false
+      required: [token, refreshToken, expiresIn]
+      properties:
+        token: { type: string }
+        refreshToken: { type: string, pattern: '^[a-f0-9]{64}$' }
+        expiresIn:
+          {
+            type: integer,
+            enum: [900],
+            description: Access-token lifetime in seconds,
+          }
+    CustomerAuthentication:
+      type: object
+      additionalProperties: false
+      required: [token, refreshToken, expiresIn, customer, cartInfo]
+      properties:
+        token: { type: string }
+        refreshToken: { type: string, pattern: '^[a-f0-9]{64}$' }
+        expiresIn: { type: integer, enum: [900] }
+        customer: { $ref: '#/components/schemas/CustomerProfile' }
+        cartInfo: { $ref: '#/components/schemas/CustomerCartInfo' }
+    CustomerProfile:
+      type: object
+      additionalProperties: false
+      required:
+        [id, email, firstName, lastName, phone, avatarUrl, emailVerified]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: [string, 'null'], format: email }
+        firstName: { type: [string, 'null'] }
+        lastName: { type: [string, 'null'] }
+        phone: { type: [string, 'null'] }
+        avatarUrl: { type: [string, 'null'] }
+        emailVerified: { type: boolean }
+    CustomerCartInfo:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          hasAnonymousCart,
+          hasCustomerCart,
+          anonymousCartItemCount,
+          customerCartItemCount,
+          requiresMergeDecision,
+        ]
+      properties:
+        hasAnonymousCart: { type: boolean }
+        hasCustomerCart: { type: boolean }
+        anonymousCartItemCount: { type: integer, minimum: 0 }
+        customerCartItemCount: { type: integer, minimum: 0 }
+        requiresMergeDecision: { type: boolean }
+    CustomerProfileResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/CustomerProfile' }
+        requestId: { type: string, format: uuid }
+    CustomerSessionResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/CustomerSession' }
+        requestId: { type: string, format: uuid }
+    CustomerAuthenticationResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/CustomerAuthentication' }
+        requestId: { type: string, format: uuid }
+    CustomerCartMergeResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [merged, cartId, cartToken]
+          properties:
+            merged: { type: boolean }
+            cartId: { type: [string, 'null'], format: uuid }
+            cartToken:
+              {
+                type: [string, 'null'],
+                description: Rotated capability for subsequent customer-owned cart and checkout calls,
+              }
+        requestId: { type: string, format: uuid }
+    CustomerProfileUpdateInput:
+      type: object
+      additionalProperties: false
+      properties:
+        firstName: { type: string, maxLength: 100 }
+        lastName: { type: string, maxLength: 100 }
+        phone: { type: string, maxLength: 30 }
+    CustomerAddressInput:
+      type: object
+      additionalProperties: false
+      required: [firstName, lastName, address1, city, province, country, zip]
+      properties:
+        firstName: { type: string, maxLength: 100 }
+        lastName: { type: string, maxLength: 100 }
+        company: { type: string, maxLength: 150 }
+        address1: { type: string, maxLength: 200 }
+        address2: { type: string, maxLength: 200 }
+        city: { type: string, maxLength: 100 }
+        province: { type: string, maxLength: 100 }
+        country: { type: string, minLength: 2, maxLength: 2 }
+        zip: { type: string, maxLength: 30 }
+        phone: { type: string, maxLength: 40 }
+        setDefault: { type: boolean }
+    CustomerAddress:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          firstName,
+          lastName,
+          company,
+          address1,
+          address2,
+          city,
+          province,
+          country,
+          zip,
+          phone,
+          isDefault,
+        ]
+      properties:
+        id: { type: [string, 'null'], format: uuid }
+        firstName: { type: string }
+        lastName: { type: string }
+        company: { type: [string, 'null'] }
+        address1: { type: string }
+        address2: { type: [string, 'null'] }
+        city: { type: string }
+        province: { type: string }
+        country: { type: string }
+        zip: { type: string }
+        phone: { type: [string, 'null'] }
+        isDefault: { type: boolean }
+    CustomerAddressResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [address]
+          properties:
+            address: { $ref: '#/components/schemas/CustomerAddress' }
+        requestId: { type: string, format: uuid }
+    CustomerAddressListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [addresses]
+          properties:
+            addresses:
+              type: array
+              items: { $ref: '#/components/schemas/CustomerAddress' }
+        requestId: { type: string, format: uuid }
+    CustomerAuthConfig:
+      type: object
+      additionalProperties: false
+      required: [password, emailOtp, smsOtp, google, apple]
+      properties:
+        password: { type: boolean }
+        emailOtp: { type: boolean }
+        smsOtp: { type: boolean }
+        google: { $ref: '#/components/schemas/CustomerSocialProviderConfig' }
+        apple: { $ref: '#/components/schemas/CustomerSocialProviderConfig' }
+    CustomerSocialProviderConfig:
+      type: object
+      additionalProperties: false
+      required: [enabled, clientId]
+      properties:
+        enabled: { type: boolean }
+        clientId: { type: [string, 'null'] }
+    CustomerAuthConfigResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/CustomerAuthConfig' }
+        requestId: { type: string, format: uuid }
+    CustomerOtpRequestResult:
+      type: object
+      additionalProperties: false
+      required: [success, status]
+      properties:
+        success: { type: boolean }
+        status:
+          enum:
+            [sent, unavailable, invalid_destination, rate_limited, send_failed]
+        retryAfterSeconds: { type: integer, minimum: 1 }
+    CustomerOtpRequestResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/CustomerOtpRequestResult' }
+        requestId: { type: string, format: uuid }
+    CustomerLogoutResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [loggedOut]
+          properties:
+            loggedOut: { const: true }
+        requestId: { type: string, format: uuid }
+    CustomerAddressDeleteResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [deleted]
+          properties:
+            deleted: { const: true }
+        requestId: { type: string, format: uuid }
+    CustomerOrderItem:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          productName,
+          variantName,
+          quantity,
+          unitPrice,
+          totalPrice,
+          fulfillmentStatus,
+          fulfilledQuantity,
+          backordered,
+          expectedShipDate,
+          estimatedDeliveryDate,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        productName: { type: string }
+        variantName: { type: [string, 'null'] }
+        quantity: { type: integer, minimum: 0 }
+        unitPrice: { type: string }
+        totalPrice: { type: string }
+        fulfillmentStatus: { type: string }
+        fulfilledQuantity: { type: integer, minimum: 0 }
+        backordered: { type: boolean }
+        expectedShipDate: { type: [string, 'null'], format: date-time }
+        estimatedDeliveryDate: { type: [string, 'null'], format: date-time }
+    CustomerOrder:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          orderNumber,
+          status,
+          paymentStatus,
+          createdAt,
+          currency,
+          subtotal,
+          taxAmount,
+          shippingAmount,
+          discountAmount,
+          total,
+          items,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        orderNumber: { type: string }
+        status: { type: string }
+        paymentStatus: { type: string }
+        createdAt: { type: string, format: date-time }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        subtotal: { type: string }
+        taxAmount: { type: string }
+        shippingAmount: { type: string }
+        discountAmount: { type: string }
+        total: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CustomerOrderItem' }
+        shippingAddress: { type: [object, 'null'], additionalProperties: true }
+        tracking: { type: [object, array, string, 'null'] }
+    CustomerOrderPageResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [data, total, page, limit, totalPages]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/CustomerOrder' }
+            total: { type: integer, minimum: 0 }
+            page: { type: integer, minimum: 1 }
+            limit: { type: integer, minimum: 1, maximum: 100 }
+            totalPages: { type: integer, minimum: 0 }
+        requestId: { type: string, format: uuid }
+    CustomerOrderDetailResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/CustomerOrder' }
+        requestId: { type: string, format: uuid }
+    CustomerOrderCancellationResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            [orderId, orderNumber, status, refundProcessed, refundAmount]
+          properties:
+            orderId: { type: string, format: uuid }
+            orderNumber: { type: string }
+            status: { type: string }
+            refundProcessed: { type: boolean }
+            refundAmount: { type: [number, string, 'null'] }
+        requestId: { type: string, format: uuid }
+    CustomerReturnItem:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          orderItemId,
+          quantity,
+          approvedQuantity,
+          reason,
+          resolution,
+          refundAmount,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        orderItemId: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1 }
+        approvedQuantity: { type: [integer, 'null'], minimum: 0 }
+        reason: { type: string }
+        resolution: { enum: [refund, replacement, store_credit] }
+        refundAmount: { type: string }
+    CustomerReturn:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          rmaNumber,
+          orderId,
+          status,
+          reason,
+          note,
+          currency,
+          refundAmount,
+          requestedAt,
+          decisionAt,
+          rejectionReason,
+          receivedAt,
+          refundedAt,
+          items,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        rmaNumber: { type: string }
+        orderId: { type: string, format: uuid }
+        status: { type: string }
+        reason: { type: string }
+        note: { type: [string, 'null'] }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        refundAmount: { type: string }
+        requestedAt: { type: [string, 'null'], format: date-time }
+        decisionAt: { type: [string, 'null'], format: date-time }
+        rejectionReason: { type: [string, 'null'] }
+        receivedAt: { type: [string, 'null'], format: date-time }
+        refundedAt: { type: [string, 'null'], format: date-time }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CustomerReturnItem' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CustomerReturnListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [returns]
+          properties:
+            returns:
+              type: array
+              items: { $ref: '#/components/schemas/CustomerReturn' }
+        requestId: { type: string, format: uuid }
+    CustomerReturnResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [return]
+          properties:
+            return: { $ref: '#/components/schemas/CustomerReturn' }
+        requestId: { type: string, format: uuid }
+    CancelOrderInput:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    CreateReturnInput:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        reason: { type: string, maxLength: 64 }
+        note: { type: string, maxLength: 2000 }
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [orderItemId, quantity]
+            properties:
+              orderItemId: { type: string, format: uuid }
+              quantity: { type: integer, minimum: 1 }
+              reason: { type: string, maxLength: 64 }
+              resolution: { enum: [refund, replacement, store_credit] }
+    StoreBootstrap:
+      type: object
+      additionalProperties: false
+      required: [storeId, apiUrl, publishableKey, apiVersion, capabilities]
+      properties:
+        storeId: { type: string, format: uuid }
+        apiUrl: { type: string, format: uri }
+        publishableKey: { type: string, pattern: '^pk_' }
+        apiVersion: { const: v1 }
+        capabilities:
+          type: array
+          items: { enum: [catalog, cart, checkout-preparation] }
+    StoreBootstrapResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/StoreBootstrap' }
+        requestId: { type: string, format: uuid }
+    Money:
+      type: object
+      additionalProperties: false
+      required: [amount, currency]
+      properties:
+        amount: { type: string, pattern: '^-?\\d+(\\.\\d+)?$' }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+    AddCartItemInput:
+      type: object
+      additionalProperties: false
+      required: [productId]
+      properties:
+        productId: { type: string, format: uuid }
+        variantId: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1, default: 1 }
+    UpdateCartItemInput:
+      type: object
+      additionalProperties: false
+      required: [quantity]
+      properties:
+        quantity: { type: integer, minimum: 1 }
+    CartItem:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          productId,
+          variantId,
+          name,
+          imageUrl,
+          quantity,
+          unitPrice,
+          totalPrice,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        productId: { type: string, format: uuid }
+        variantId: { type: [string, 'null'], format: uuid }
+        name: { type: string }
+        imageUrl: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        unitPrice: { $ref: '#/components/schemas/Money' }
+        totalPrice: { $ref: '#/components/schemas/Money' }
+    CartTotals:
+      type: object
+      additionalProperties: false
+      required: [subtotal, tax, taxIsEstimate, shipping, discount, total]
+      properties:
+        subtotal: { type: string }
+        tax: { type: string }
+        taxIsEstimate: { type: boolean }
+        shipping: { type: string }
+        discount: { type: string }
+        total: { type: string }
+    Cart:
+      type: object
+      additionalProperties: false
+      required: [id, currency, items, totals, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        items: { type: array, items: { $ref: '#/components/schemas/CartItem' } }
+        totals: { $ref: '#/components/schemas/CartTotals' }
+        expiresAt: { type: string, format: date-time }
+    CartResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/Cart' }
+        requestId: { type: string, format: uuid }
+    CreateCartResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId, cartToken, created]
+      properties:
+        data: { $ref: '#/components/schemas/Cart' }
+        requestId: { type: string, format: uuid }
+        cartToken: { type: string, pattern: '^hc_[A-Za-z0-9_-]{43}$' }
+        created: { const: true }
+    CheckoutContact:
+      type: object
+      additionalProperties: false
+      properties:
+        firstName: { type: string, maxLength: 100 }
+        lastName: { type: string, maxLength: 100 }
+        email: { type: string, format: email, maxLength: 254 }
+        phone: { type: string, maxLength: 40 }
+    CheckoutAddress:
+      type: object
+      additionalProperties: false
+      properties:
+        firstName: { type: string, maxLength: 100 }
+        lastName: { type: string, maxLength: 100 }
+        email: { type: string, format: email, maxLength: 254 }
+        phone: { type: string, maxLength: 40 }
+        company: { type: string, maxLength: 150 }
+        address1: { type: string, maxLength: 200 }
+        address2: { type: string, maxLength: 200 }
+        city: { type: string, maxLength: 100 }
+        state: { type: string, maxLength: 100 }
+        postalCode: { type: string, maxLength: 30 }
+        country: { type: string, minLength: 2, maxLength: 2 }
+        sameAsBilling: { type: boolean }
+    CheckoutDetailsInput:
+      type: object
+      additionalProperties: false
+      properties:
+        customerInfo: { $ref: '#/components/schemas/CheckoutContact' }
+        billingAddress: { $ref: '#/components/schemas/CheckoutAddress' }
+        shippingAddress: { $ref: '#/components/schemas/CheckoutAddress' }
+    CheckoutSelectionInput:
+      type: object
+      additionalProperties: false
+      required: [id]
+      properties:
+        id: { type: string, format: uuid }
+    HeadlessShippingOption:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          name,
+          description,
+          amount,
+          currency,
+          estimatedDays,
+          estimatedDeliveryDate,
+          carrier,
+          rateSource,
+        ]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        amount: { type: string }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        estimatedDays: { type: [string, 'null'] }
+        estimatedDeliveryDate: { type: [string, 'null'] }
+        carrier: { type: [string, 'null'] }
+        rateSource: { type: string }
+    HeadlessPaymentMethod:
+      type: object
+      additionalProperties: false
+      required: [id, name, description, type, icon, capabilities]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        type: { type: string }
+        icon: { type: [string, 'null'] }
+        capabilities: { type: object, additionalProperties: true }
+    CheckoutPreparation:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          cart,
+          customerInfo,
+          billingAddress,
+          shippingAddress,
+          shippingOptions,
+          paymentMethods,
+          selectedShippingMethodId,
+          selectedPaymentMethodId,
+          ready,
+          missing,
+        ]
+      properties:
+        cart: { $ref: '#/components/schemas/Cart' }
+        customerInfo: { $ref: '#/components/schemas/CheckoutContact' }
+        billingAddress: { $ref: '#/components/schemas/CheckoutAddress' }
+        shippingAddress: { $ref: '#/components/schemas/CheckoutAddress' }
+        shippingOptions:
+          {
+            type: array,
+            items: { $ref: '#/components/schemas/HeadlessShippingOption' },
+          }
+        paymentMethods:
+          {
+            type: array,
+            items: { $ref: '#/components/schemas/HeadlessPaymentMethod' },
+          }
+        selectedShippingMethodId: { type: [string, 'null'] }
+        selectedPaymentMethodId: { type: [string, 'null'], format: uuid }
+        ready: { type: boolean }
+        missing: { type: array, items: { type: string } }
+    CheckoutPreparationResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/CheckoutPreparation' }
+        requestId: { type: string, format: uuid }
+    OrderConfirmation:
+      type: object
+      additionalProperties: false
+      required: [orderId, orderNumber, status, paymentStatus, requiresPayment]
+      properties:
+        orderId: { type: string, format: uuid }
+        orderNumber: { type: string }
+        status: { type: string }
+        paymentStatus: { type: string }
+        requiresPayment: { const: false }
+        checkoutToken: { type: string }
+    PlaceOrderResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/OrderConfirmation' }
+        requestId: { type: string, format: uuid }
+    HostedPaymentSessionInput:
+      type: object
+      additionalProperties: false
+      required: [successUrl, cancelUrl]
+      properties:
+        successUrl: { type: string, format: uri, maxLength: 2048 }
+        cancelUrl: { type: string, format: uri, maxLength: 2048 }
+    HostedPaymentSession:
+      type: object
+      additionalProperties: false
+      required:
+        [orderId, orderNumber, status, paymentStatus, sessionId, checkoutUrl]
+      properties:
+        orderId: { type: string, format: uuid }
+        orderNumber: { type: string }
+        status: { type: string }
+        paymentStatus: { type: string }
+        sessionId: { type: string }
+        checkoutUrl: { type: string, format: uri }
+        checkoutToken: { type: string }
+    HostedPaymentSessionResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/HostedPaymentSession' }
+        requestId: { type: string, format: uuid }
+    OrderLookupInput:
+      type: object
+      additionalProperties: false
+      required: [orderNumber, email]
+      properties:
+        orderNumber: { type: string, minLength: 1, maxLength: 100 }
+        email: { type: string, format: email, maxLength: 254 }
+    GuestOrderItem:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          productName,
+          quantity,
+          unitPrice,
+          totalPrice,
+          backordered,
+          backorderedQuantity,
+          isPreorder,
+        ]
+      properties:
+        productName: { type: string }
+        variantName: { type: [string, 'null'] }
+        quantity: { type: integer, minimum: 1 }
+        unitPrice: { type: [string, number] }
+        totalPrice: { type: [string, number] }
+        fulfillmentStatus: { type: [string, 'null'] }
+        backordered: { type: boolean }
+        backorderedQuantity: { type: integer, minimum: 0 }
+        isPreorder: { type: boolean }
+        expectedShipDate: { type: [string, 'null'], format: date-time }
+        estimatedDeliveryDate: { type: [string, 'null'], format: date-time }
+    GuestOrder:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          orderNumber,
+          status,
+          paymentStatus,
+          createdAt,
+          currency,
+          subtotal,
+          taxAmount,
+          shippingAmount,
+          discountAmount,
+          total,
+          shippingAddress,
+          items,
+          tracking,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        orderNumber: { type: string }
+        status: { type: string }
+        paymentStatus: { type: string }
+        createdAt: { type: string, format: date-time }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        subtotal: { type: [string, number] }
+        taxAmount: { type: [string, number] }
+        shippingAmount: { type: [string, number] }
+        discountAmount: { type: [string, number] }
+        total: { type: [string, number] }
+        shippingAddress: { type: [object, 'null'], additionalProperties: true }
+        items:
+          {
+            type: array,
+            items: { $ref: '#/components/schemas/GuestOrderItem' },
+          }
+        tracking: { type: [object, 'null'], additionalProperties: true }
+    OrderLookupResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/GuestOrder' }
+        requestId: { type: string, format: uuid }
+    ProductSummary:
+      type: object
+      additionalProperties: false
+      required: [id, slug, name, description, imageUrl, price, available]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string }
+        imageUrl: { type: string }
+        price: { $ref: '#/components/schemas/Money' }
+        available: { type: boolean }
+    ProductPage:
+      type: object
+      additionalProperties: false
+      required: [data, nextCursor, requestId]
+      properties:
+        data:
+          {
+            type: array,
+            items: { $ref: '#/components/schemas/ProductSummary' },
+          }
+        nextCursor: { type: [string, 'null'] }
+        requestId: { type: string, format: uuid }
+    ProductResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { $ref: '#/components/schemas/ProductSummary' }
+        requestId: { type: string, format: uuid }
+    Category:
+      type: object
+      additionalProperties: false
+      required: [id, slug, name, description, imageUrl, children]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string }
+        imageUrl: { type: string }
+        children:
+          { type: array, items: { $ref: '#/components/schemas/Category' } }
+    CategoryTreeResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Category' } }
+        requestId: { type: string, format: uuid }

@@ -19,6 +19,7 @@ jobs:
           gem_version="$(ruby -e "puts Gem::Specification.load('headless-commerce.gemspec').version")"
           test "$RELEASE_VERSION" = "$gem_version"
           ! git ls-remote --exit-code --tags origin "refs/tags/v$RELEASE_VERSION" >/dev/null 2>&1
+      - run: ruby scripts/check_contract.rb
       - run: bundle exec ruby -Ilib test/client_test.rb
       - run: bundle exec ruby -Ilib test/rails_runtime_test.rb
       - run: bash scripts/package-smoke.sh
