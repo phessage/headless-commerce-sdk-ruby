@@ -50,6 +50,17 @@ unless customer_email.empty? || customer_password.empty?
   raise 'Customer address update failed' unless updated['address2'] == 'Suite Ruby'
   addresses = client.customer_addresses(auth.fetch('token')).dig('data', 'addresses')
   raise 'Customer address list failed' unless addresses.any? { |entry| entry['id'] == address['id'] }
+  return_order_id = ENV.fetch('HEADLESS_RETURN_ORDER_ID', '')
+  return_order_item_id = ENV.fetch('HEADLESS_RETURN_ORDER_ITEM_ID', '')
+  raise 'Eligible return fixture missing' if return_order_id.empty? || return_order_item_id.empty?
+  return_request = client.create_customer_return(auth.fetch('token'), return_order_id, { reason: 'not_as_expected', items: [{ orderItemId: return_order_item_id, quantity: 1, resolution: 'refund' }] }).dig('data', 'return')
+  raise 'Return creation projection drifted' unless return_request['orderId'] == return_order_id && return_request['status'] == 'requested'
+  order_returns = client.customer_order_returns(auth.fetch('token'), return_order_id).dig('data', 'returns')
+  raise 'Return missing from order history' unless order_returns.any? { |entry| entry['id'] == return_request['id'] }
+  customer_returns = client.customer_returns(auth.fetch('token')).dig('data', 'returns')
+  raise 'Return missing from customer history' unless customer_returns.any? { |entry| entry['id'] == return_request['id'] }
+  cancelled_return = client.cancel_customer_return(auth.fetch('token'), return_request.fetch('id')).dig('data', 'return')
+  raise 'Return cancellation projection drifted' unless cancelled_return['status'] == 'cancelled'
   raise 'Customer address deletion failed' unless client.delete_customer_address(auth.fetch('token'), address.fetch('id')).dig('data', 'deleted')
   rotated = client.refresh_customer(auth.fetch('refreshToken')).fetch('data')
   begin
