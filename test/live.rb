@@ -79,6 +79,12 @@ unless customer_email.empty? || customer_password.empty?
   rescue Phessage::HeadlessCommerce::ProblemError => error
     raise 'Refresh replay problem contract failed' unless error.status == 401 && error.code == 'HEADLESS_HTTP_401'
   end
+  begin
+    client.refresh_customer(rotated.fetch('refreshToken'))
+    raise 'Refresh family survived ancestor replay'
+  rescue Phessage::HeadlessCommerce::ProblemError => error
+    raise 'Refresh family revocation contract failed' unless error.status == 401 && error.code == 'HEADLESS_HTTP_401'
+  end
   raise 'Customer logout failed' unless client.logout_customer(rotated.fetch('refreshToken')).dig('data', 'loggedOut')
 end
 puts "Ruby deployed guest and customer journeys passed and reopened: #{order['orderNumber']}"
