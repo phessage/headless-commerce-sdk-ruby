@@ -57,6 +57,18 @@ class ClientTest < Minitest::Test
     assert_equal TOKEN, calls[0][1]['x-cart-token']; assert_equal 'customer-jwt', calls[2][1]['x-customer-token']; assert_equal 'return-intent-1', calls[5][1]['Idempotency-Key']
     assert_includes calls[4][0], 'page=2&limit=10&status=pending'; assert calls[5][0].include?('/orders/order%2F1/returns')
   end
+  def test_oauth_transaction_and_route_parity
+    transaction = Phessage::HeadlessCommerce::OAuthTransaction.create
+    assert_match(/\A[A-Za-z0-9_-]{43}\z/, transaction.state)
+    assert_equal Base64.urlsafe_encode64(Digest::SHA256.digest(transaction.code_verifier), padding: false), transaction.code_challenge
+    calls = []; transport = ->(url, headers, method, body) { calls << [url, headers, method, body]; [200, '{"data":{},"requestId":"r"}'] }
+    client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: transport)
+    client.authorize_customer_oauth(provider: 'google', redirect_uri: 'https://shop.example/callback', code_challenge: transaction.code_challenge, state: transaction.state)
+    client.exchange_customer_oauth(code: 'a' * 64, code_verifier: transaction.code_verifier, redirect_uri: 'https://shop.example/callback', cart_token: TOKEN)
+    assert calls[0][0].end_with?('/auth/oauth/google/authorize'); assert calls[1][0].end_with?('/auth/oauth/token')
+    assert_equal transaction.state, JSON.parse(calls[0][3])['state']; assert_equal TOKEN, calls[1][1]['x-cart-token']
+    assert_raises(ArgumentError) { client.authorize_customer_oauth(provider: 'google', redirect_uri: 'https://shop.example/callback', code_challenge: transaction.code_challenge, state: 'short') }
+  end
   def test_rejects_invalid_return_idempotency_key_without_a_request
     calls = []; transport = ->(url, headers, method, body) { calls << [url, headers, method, body]; [200, '{}'] }
     client = Phessage::HeadlessCommerce::Client.new(base_url: 'https://sandbox.test', publishable_key: 'pk_test_demo', transport: transport)

@@ -640,6 +640,60 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/auth/oauth/{provider}/authorize:
+    parameters:
+      - { name: provider, in: path, required: true, schema: { enum: [google, apple] } }
+    post:
+      operationId: authorizeHeadlessCustomerOAuth
+      summary: Begin browser or mobile customer authorization with PKCE
+      security: [{ headlessPublishableKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerOAuthAuthorizeInput' }
+      responses:
+        '200':
+          description: Provider authorization URL backed by single-use state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerOAuthAuthorizationResponse' }
+        '400':
+          description: Provider unavailable or callback URI not registered
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+  /v1/headless/customer/auth/oauth/token:
+    post:
+      operationId: exchangeHeadlessCustomerOAuthCode
+      summary: Exchange a one-time authorization code using its PKCE verifier
+      security: [{ headlessPublishableKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerOAuthTokenInput' }
+      responses:
+        '200':
+          description: Customer session and cart-merge state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerAuthenticationResponse' }
+        '401':
+          description: Invalid, expired, replayed, or incorrectly bound code
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
+        default:
+          description: Unexpected or unlisted headless failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/HeadlessProblem' }
   /v1/headless/customer/me:
     get:
       operationId: getHeadlessCustomerProfile
@@ -1186,6 +1240,35 @@ components:
         idToken: { type: string, maxLength: 8192 }
         firstName: { type: string, maxLength: 80 }
         lastName: { type: string, maxLength: 80 }
+    CustomerOAuthAuthorizeInput:
+      type: object
+      additionalProperties: false
+      required: [redirectUri, codeChallenge, state]
+      properties:
+        redirectUri: { type: string, minLength: 8, maxLength: 2048 }
+        codeChallenge: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' }
+        state: { type: string, minLength: 16, maxLength: 1024 }
+    CustomerOAuthTokenInput:
+      type: object
+      additionalProperties: false
+      required: [code, codeVerifier, redirectUri]
+      properties:
+        code: { type: string, pattern: '^[a-f0-9]{64}$' }
+        codeVerifier: { type: string, pattern: '^[A-Za-z0-9._~-]{43,128}$' }
+        redirectUri: { type: string, minLength: 8, maxLength: 2048 }
+    CustomerOAuthAuthorizationResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [authorizationUrl, expiresIn]
+          properties:
+            authorizationUrl: { type: string, format: uri }
+            expiresIn: { type: integer, enum: [600] }
+        requestId: { type: string, format: uuid }
     CustomerRefreshInput:
       type: object
       additionalProperties: false
