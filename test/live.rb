@@ -57,12 +57,12 @@ unless customer_email.empty? || customer_password.empty?
   return_input = { reason: 'not_as_expected', items: [{ orderItemId: return_order_item_id, quantity: 1, resolution: 'refund' }] }
   return_request = client.create_customer_return(auth.fetch('token'), return_order_id, return_input, idempotency_key: return_intent).dig('data', 'return')
   replayed_return = client.create_customer_return(auth.fetch('token'), return_order_id, return_input, idempotency_key: return_intent).dig('data', 'return')
-  assert.call(replayed_return['id'] == return_request['id'], 'return creation did not replay the original request')
+  raise 'Return creation did not replay the original request' unless replayed_return['id'] == return_request['id']
   begin
     client.create_customer_return(auth.fetch('token'), return_order_id, return_input.merge(note: 'different intent'), idempotency_key: return_intent)
     raise 'return key reuse with a different payload did not conflict'
   rescue Phessage::HeadlessCommerce::ProblemError => e
-    assert.call(e.status == 409, 'different return intent did not return 409')
+    raise 'Different return intent did not return 409' unless e.status == 409
   end
   raise 'Return creation projection drifted' unless return_request['orderId'] == return_order_id && return_request['status'] == 'requested'
   order_returns = client.customer_order_returns(auth.fetch('token'), return_order_id).dig('data', 'returns')
