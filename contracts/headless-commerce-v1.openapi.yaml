@@ -539,7 +539,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/CustomerSessionResponse' }
         '401':
-          description: Invalid, expired, replayed, or cross-store refresh capability
+          description: Invalid, expired, revoked, replayed, or cross-store refresh capability; replay of a consumed token revokes its refresh-token family
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/HeadlessProblem' }
