@@ -20,6 +20,10 @@ jobs:
         with: {ruby-version: '3.3', bundler-cache: true}
       - run: bundle exec ruby -Ilib test/rails_runtime_test.rb
   deployed-journey:
+    # GitHub withholds secrets from pull requests opened from forks, so the
+    # deployed journey cannot allocate a fixture there. It is skipped for forks
+    # by design and stays fail-closed for every trusted run, including main.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     env: {HEADLESS_E2E_ALLOCATOR_TOKEN: '${{ secrets.HEADLESS_E2E_ALLOCATOR_TOKEN }}'}
     steps:

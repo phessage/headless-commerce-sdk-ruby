@@ -1,0 +1,4 @@
+# Changes anywhere need an owner's review. Workflows are listed separately so
+# that rule survives any future narrowing of the default.
+*                 @chengwang-cc
+/.github/         @chengwang-cc
