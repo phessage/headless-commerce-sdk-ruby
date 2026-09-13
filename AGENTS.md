@@ -4,7 +4,7 @@ Read `README.md`, `docs/rails.md`, the gemspec, `lib/*` and all tests before edi
 
 ## Boundary and contract
 
-This is a Ruby 3.1+ SDK with an optional Rails Railtie. Canonical API truth is `phessage/ecommerce-service/contracts/headless-commerce-v1.openapi.yaml`. Rails support configures the shared client; it must not hide routes, callbacks or network work.
+This is a Ruby 3.1+ SDK with an optional Rails Railtie. Canonical API truth is `https://www.1ecomm.com/headless-commerce/openapi.yaml`. Rails support configures the shared client; it must not hide routes, callbacks or network work.
 
 The reviewed snapshot at `contracts/headless-commerce-v1.openapi.yaml` and its SHA-256 must move together. Run `ruby scripts/check_contract.rb`. Do not update the digest until the source diff and every affected client method/error field have been reviewed against deployed behavior.
 
