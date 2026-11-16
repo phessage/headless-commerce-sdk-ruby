@@ -1,35 +1,42 @@
 name: CI
-on: [push, pull_request]
+on:
+  # Public repository on the organisation's self-hosted runners. Pull requests
+  # (including any from forks) never trigger a run: CI runs only for pushes to
+  # main, release tags and manual dispatch by a maintainer.
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
 permissions: {contents: read}
 jobs:
   test:
     strategy: {matrix: {ruby: ['3.1','3.2','3.3','3.4']}}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, docker-services]
+    container: ruby:${{ matrix.ruby }}
     steps:
       - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with: {ruby-version: '${{ matrix.ruby }}'}
       - run: ruby scripts/check_contract.rb
       - run: ruby -c lib/phessage/headless_commerce/client.rb
       - run: ruby -Ilib test/client_test.rb
   rails:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, docker-services]
+    container: ruby:3.3
     steps:
       - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with: {ruby-version: '3.3', bundler-cache: true}
+      - run: bundle install --jobs 4
       - run: bundle exec ruby -Ilib test/rails_runtime_test.rb
   deployed-journey:
     # GitHub withholds secrets from pull requests opened from forks, so the
     # deployed journey cannot allocate a fixture there. It is skipped for forks
     # by design and stays fail-closed for every trusted run, including main.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, docker-services]
+    container: ruby:3.3
     env: {HEADLESS_E2E_ALLOCATOR_TOKEN: '${{ secrets.HEADLESS_E2E_ALLOCATOR_TOKEN }}'}
     steps:
+      - name: Install fixture tooling inside the job container
+        run: apt-get update && apt-get install --no-install-recommends -y jq
       - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with: {ruby-version: '3.3'}
       - name: Allocate isolated deployed fixture
         run: bash .github/scripts/headless-fixture.sh allocate
       - name: Run deployed catalog-to-order journey
