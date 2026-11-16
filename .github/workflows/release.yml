@@ -7,12 +7,19 @@ permissions: {contents: write, packages: write}
 concurrency: {group: ruby-sdk-release, cancel-in-progress: false}
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, docker-services]
+    container: ruby:3.3
     environment: package-release
     steps:
       - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with: {ruby-version: '3.3', bundler-cache: true}
+      - name: Trust the checked-out workspace inside the job container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Install GitHub CLI into the job workspace
+        run: |
+          v=2.62.0
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${v}/gh_${v}_linux_amd64.tar.gz" | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gh_${v}_linux_amd64/bin" >> "$GITHUB_PATH"
+      - run: bundle install --jobs 4
       - name: Verify immutable release identity
         env: {RELEASE_VERSION: '${{ inputs.version }}'}
         run: |
@@ -28,7 +35,7 @@ jobs:
           mkdir release
           gem build headless-commerce.gemspec --output release/phessage-headless-commerce.gem
           bundle list > release/bundled-dependencies.txt
-          shasum -a 256 release/* > release/SHA256SUMS
+          sha256sum release/* > release/SHA256SUMS
       - name: Publish restricted GitHub Packages gem
         env: {PACKAGE_TOKEN: '${{ secrets.GITHUB_TOKEN }}'}
         run: |
